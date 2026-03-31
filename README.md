@@ -29,32 +29,32 @@ El proyecto incluye además un **dashboard web** para monitorización en tiempo 
 ## 🏗️ Arquitectura del Sistema
 
 ```
-                    ┌─────────────────────────────────┐
+                    ┌──────────────────────────────────┐
                     │      SISTEMA DE DETECCIÓN        │
                     │        (Raspberry Pi 5)          │
-                    │                                   │
-                    │  wlan1 (AR9271) ── AP legítimo    │
-                    │  wlan2 (AR9271) ── Modo monitor   │
-                    │  Mosquitto MQTT ── Broker          │
-                    │  Dashboard Web ── Flask+SocketIO   │
+                    │                                  │
+                    │  wlan1 (AR9271) ── AP legítimo   │
+                    │  wlan2 (AR9271) ── Modo monitor  │
+                    │  Mosquitto MQTT ── Broker        │
+                    │  Dashboard Web ── Flask+SocketIO │
                     └──────────┬──────────┬────────────┘
                                │          │
                     ┌──────────┘          └──────────┐
                     │                                 │
-          ┌─────────────────┐              ┌─────────────────┐
-          │   CLIENTE IoT   │              │   MAC (Python)   │
+          ┌─────────────────┐              ┌───────────────────┐
+          │   CLIENTE IoT   │              │   MAC (Python)    │
           │  ESP32-C3 Rust  │              │                   │
           │  Board          │              │  IDS Deauth       │
-          │  Temp/Hum/IMU   │──── MQTT ──→│  IDS Evil Twin    │
+          │  Temp/Hum/IMU   │──── MQTT ───→ │  IDS Evil Twin   │
           │  + MQTT pub     │              │  Alertas MQTT     │
           └─────────────────┘              │  Métricas TPR/FPR │
                                            └───────────────────┘
-                    ┌─────────────────┐
+                    ┌──────────────────┐
                     │   ATACANTES      │
-                    │                   │
-                    │  ESP32 Marauder   │── Deauth
-                    │  ESP32 WROOM-32U  │── Evil Twin + Portal Cautivo
-                    └─────────────────┘
+                    │                  │
+                    │  ESP32 Marauder  │── Deauth
+                    │  ESP32 WROOM-32U │── Evil Twin + Portal Cautivo
+                    └──────────────────┘
 ```
 
 ---
