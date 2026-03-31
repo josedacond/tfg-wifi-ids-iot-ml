@@ -39,7 +39,7 @@ El proyecto incluye además un **dashboard web** para monitorización en tiempo 
                     │  Dashboard Web ── Flask+SocketIO │
                     └──────────┬──────────┬────────────┘
                                │          │
-                    ┌──────────┘          └──────────┐
+                    ┌──────────┘          └───────────┐
                     │                                 │
           ┌─────────────────┐              ┌───────────────────┐
           │   CLIENTE IoT   │              │   MAC (Python)    │
