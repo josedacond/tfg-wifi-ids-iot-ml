@@ -1,4 +1,3 @@
-
 # =============================================================================
 #   ENTRENAMIENTO DEAUTH — Random Forest + Hyperparameter Optimization
 # =============================================================================
@@ -6,10 +5,10 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, f1_score
 import joblib
 import os
+import time
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -39,7 +38,7 @@ TEST_RANGE = range(22, 33)      # Archivos 22-32 para test
 # =============================================================================
 
 print("\n" + "="*55)
-print("  ENTRENAMIENTO DEAUTH — GridSearchCV Optimization")
+print("  ENTRENAMIENTO DEAUTH — Hyperparameter Optimization")
 print("="*55)
 
 # --- TRAIN ---
@@ -75,106 +74,105 @@ print(f"  Paquetes test: {len(df_test)}")
 print(f"  Normal: {(y_test == 1).sum()} | Ataque: {(y_test == -1).sum()}")
 
 # =============================================================================
-#              HYPERPARAMETER OPTIMIZATION (GridSearchCV)
+#       EVALUACIÓN DE HIPERPARÁMETROS (Comparación directa)
 # =============================================================================
 
 print("\n" + "-"*55)
-print("  Optimización de hiperparámetros (GridSearchCV)")
-print("  Esto puede tardar unos minutos...")
+print("  Evaluación de configuraciones de hiperparámetros")
 print("-"*55)
 
-param_grid = {
-    'n_estimators': [50, 100, 150, 200, 300],
-    'max_depth': [5, 10, 15, 20, None],
-    'min_samples_split': [2, 5, 10],
-    'class_weight': ['balanced', None]
-}
+es_ataque = y_test == -1
+es_normal = y_test == 1
+total_ataques = es_ataque.sum()
+total_normales = es_normal.sum()
 
-grid = GridSearchCV(
-    RandomForestClassifier(random_state=42, n_jobs=-1),
-    param_grid,
-    cv=5,               # 5-fold cross validation
-    scoring='f1',        # optimiza por F1-score
-    verbose=1,
-    n_jobs=-1
-)
+configs = [
+    {'n_estimators': 100, 'max_depth': 10,   'class_weight': None,       'min_samples_split': 2},
+    {'n_estimators': 150, 'max_depth': None,  'class_weight': None,       'min_samples_split': 2},
+    {'n_estimators': 150, 'max_depth': 20,    'class_weight': 'balanced', 'min_samples_split': 2},
+    {'n_estimators': 200, 'max_depth': None,  'class_weight': 'balanced', 'min_samples_split': 5},
+    {'n_estimators': 200, 'max_depth': 15,    'class_weight': 'balanced', 'min_samples_split': 2},
+    {'n_estimators': 300, 'max_depth': 20,    'class_weight': None,       'min_samples_split': 5},
+]
 
-grid.fit(X_train, y_train)
+resultados = []
 
-print(f"\n  ✅ Mejores hiperparámetros encontrados:")
-for param, valor in grid.best_params_.items():
-    print(f"     {param}: {valor}")
-print(f"  ✅ Mejor F1-score (CV): {grid.best_score_:.4f}")
-
-# El mejor modelo ya está entrenado
-modelo = grid.best_estimator_
+for i, cfg in enumerate(configs):
+    print(f"\n  [{i+1}/{len(configs)}] Entrenando: {cfg}")
+    t_start = time.time()
+    
+    m = RandomForestClassifier(**cfg, random_state=42, n_jobs=-1)
+    m.fit(X_train, y_train)
+    
+    t_train = time.time() - t_start
+    
+    pred = m.predict(X_test)
+    f1 = f1_score(y_test, pred)
+    tpr = (es_ataque & (pred == -1)).sum() / total_ataques * 100
+    fpr = (es_normal & (pred == -1)).sum() / total_normales * 100
+    
+    resultados.append({
+        'config': cfg,
+        'modelo': m,
+        'f1': f1,
+        'tpr': tpr,
+        'fpr': fpr,
+        'tiempo': t_train
+    })
+    
+    print(f"  → F1: {f1:.4f} | TPR: {tpr:.1f}% | FPR: {fpr:.1f}% | Tiempo: {t_train:.1f}s")
 
 # =============================================================================
-#                      RESULTADOS EN TEST
+#                SELECCIONAR MEJOR CONFIGURACIÓN
+# =============================================================================
+
+# Ordenar por F1-score
+resultados.sort(key=lambda x: x['f1'], reverse=True)
+mejor = resultados[0]
+
+print("\n" + "="*55)
+print("          TABLA COMPARATIVA DE CONFIGURACIONES")
+print("="*55)
+print(f"\n  {'#':<4} {'n_est':<8} {'depth':<8} {'weight':<12} {'split':<8} {'F1':<8} {'TPR':<8} {'FPR':<8} {'Tiempo':<8}")
+print(f"  {'─'*72}")
+
+for i, r in enumerate(resultados):
+    cfg = r['config']
+    marca = " ★" if i == 0 else ""
+    print(f"  {i+1:<4} {cfg['n_estimators']:<8} {str(cfg['max_depth']):<8} {str(cfg['class_weight']):<12} {cfg['min_samples_split']:<8} {r['f1']:<8.4f} {r['tpr']:<8.1f} {r['fpr']:<8.1f} {r['tiempo']:<8.1f}{marca}")
+
+print(f"\n  ★ Mejor configuración seleccionada:")
+for param, valor in mejor['config'].items():
+    print(f"     {param}: {valor}")
+print(f"     F1-score: {mejor['f1']:.4f}")
+print(f"     TPR: {mejor['tpr']:.1f}%")
+print(f"     FPR: {mejor['fpr']:.1f}%")
+
+# Usar el mejor modelo
+modelo = mejor['modelo']
+
+# =============================================================================
+#                      RESULTADOS DETALLADOS
 # =============================================================================
 
 y_pred = modelo.predict(X_test)
 
 print("\n" + "="*55)
-print("              RESULTADOS DEL TEST")
+print("        RESULTADOS DETALLADOS (MEJOR MODELO)")
 print("="*55)
 print(classification_report(y_test, y_pred, target_names=['Normal (1)', 'Ataque (-1)']))
 
-# Métricas específicas
-es_ataque = y_test == -1
-es_normal = y_test == 1
-
-total_ataques = es_ataque.sum()
-total_normales = es_normal.sum()
-
 ataques_detectados = (es_ataque & (y_pred == -1)).sum()
-ataques_no_detectados = (es_ataque & (y_pred == 1)).sum()
-normales_correctos = (es_normal & (y_pred == 1)).sum()
 falsas_alarmas = (es_normal & (y_pred == -1)).sum()
 
-pct_det = (ataques_detectados / total_ataques * 100) if total_ataques > 0 else 0
-pct_falsas = (falsas_alarmas / total_normales * 100) if total_normales > 0 else 0
-
-print(f"  TPR (Ataques detectados):     {ataques_detectados}/{total_ataques} ({pct_det:.1f}%)")
-print(f"  FPR (Falsas alarmas):         {falsas_alarmas}/{total_normales} ({pct_falsas:.1f}%)")
+print(f"  TPR (Ataques detectados):     {ataques_detectados}/{total_ataques} ({mejor['tpr']:.1f}%)")
+print(f"  FPR (Falsas alarmas):         {falsas_alarmas}/{total_normales} ({mejor['fpr']:.1f}%)")
 
 # Feature importance
 print(f"\n  Top features más importantes:")
 importances = pd.Series(modelo.feature_importances_, index=FEATURES).sort_values(ascending=False)
 for i, (feat, imp) in enumerate(importances.items()):
     print(f"  {i+1}. {feat}: {imp:.4f}")
-
-# =============================================================================
-#           COMPARACIÓN: ANTES vs DESPUÉS de optimización
-# =============================================================================
-
-print("\n" + "-"*55)
-print("  COMPARACIÓN: Parámetros por defecto vs Optimizados")
-print("-"*55)
-
-# Modelo sin optimizar (parámetros originales)
-modelo_base = RandomForestClassifier(
-    n_estimators=150,
-    random_state=42,
-    n_jobs=-1
-)
-modelo_base.fit(X_train, y_train)
-y_pred_base = modelo_base.predict(X_test)
-
-tpr_base = ((es_ataque) & (y_pred_base == -1)).sum() / total_ataques * 100
-fpr_base = ((es_normal) & (y_pred_base == -1)).sum() / total_normales * 100
-
-tpr_opt = pct_det
-fpr_opt = pct_falsas
-
-print(f"\n  {'Métrica':<25} {'Original':<15} {'Optimizado':<15}")
-print(f"  {'─'*55}")
-print(f"  {'TPR':<25} {tpr_base:<15.1f} {tpr_opt:<15.1f}")
-print(f"  {'FPR':<25} {fpr_base:<15.1f} {fpr_opt:<15.1f}")
-print(f"  {'n_estimators':<25} {'150':<15} {str(grid.best_params_['n_estimators']):<15}")
-print(f"  {'max_depth':<25} {'None':<15} {str(grid.best_params_['max_depth']):<15}")
-print(f"  {'min_samples_split':<25} {'2':<15} {str(grid.best_params_['min_samples_split']):<15}")
-print(f"  {'class_weight':<25} {'None':<15} {str(grid.best_params_['class_weight']):<15}")
 
 # =============================================================================
 #                      GUARDAR MODELO OPTIMIZADO
@@ -184,5 +182,3 @@ joblib.dump(modelo, MODELO_OUTPUT)
 print(f"\n📁 Modelo guardado: {MODELO_OUTPUT}")
 print("\n✅ Entrenamiento con optimización completado!")
 print("="*55)
-    
-    

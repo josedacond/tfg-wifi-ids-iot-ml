@@ -1,4 +1,3 @@
-
 # =============================================================================
 #   ENTRENAMIENTO EVIL TWIN — Features de Ventana + Hyperparameter Optimization
 # =============================================================================
@@ -6,10 +5,11 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, f1_score
 import joblib
 import json
+import time
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -30,7 +30,7 @@ TAMANO_VENTANA = 150
 # =============================================================================
 
 print("\n" + "="*55)
-print("  ENTRENAMIENTO EVIL TWIN — GridSearchCV Optimization")
+print("  ENTRENAMIENTO EVIL TWIN — Hyperparameter Optimization")
 print("="*55)
 
 print(f"\nCargando CSV: {CSV_PATH}")
@@ -144,48 +144,87 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.3, random_state=42, stratify=y
 )
 
+print(f"\n  Train: {len(X_train)} ventanas | Test: {len(X_test)} ventanas")
+
 # =============================================================================
-#              HYPERPARAMETER OPTIMIZATION (GridSearchCV)
+#       EVALUACIÓN DE HIPERPARÁMETROS (Comparación directa)
 # =============================================================================
 
 print("\n" + "-"*55)
-print("  Optimización de hiperparámetros (GridSearchCV)")
-print("  Esto puede tardar unos minutos...")
+print("  Evaluación de configuraciones de hiperparámetros")
 print("-"*55)
 
-param_grid = {
-    'n_estimators': [50, 100, 150, 200, 300],
-    'max_depth': [5, 10, 15, 20, None],
-    'min_samples_split': [2, 5, 10],
-    'class_weight': ['balanced', None]
-}
+configs = [
+    {'n_estimators': 100, 'max_depth': 10,   'class_weight': None,       'min_samples_split': 2},
+    {'n_estimators': 150, 'max_depth': None,  'class_weight': None,       'min_samples_split': 2},
+    {'n_estimators': 150, 'max_depth': 20,    'class_weight': 'balanced', 'min_samples_split': 2},
+    {'n_estimators': 200, 'max_depth': 15,    'class_weight': 'balanced', 'min_samples_split': 2},
+    {'n_estimators': 200, 'max_depth': None,  'class_weight': 'balanced', 'min_samples_split': 5},
+    {'n_estimators': 300, 'max_depth': 20,    'class_weight': None,       'min_samples_split': 5},
+]
 
-grid = GridSearchCV(
-    RandomForestClassifier(random_state=42, n_jobs=-1),
-    param_grid,
-    cv=5,
-    scoring='f1',
-    verbose=1,
-    n_jobs=-1
-)
+resultados = []
 
-grid.fit(X_train, y_train)
-
-print(f"\n  ✅ Mejores hiperparámetros encontrados:")
-for param, valor in grid.best_params_.items():
-    print(f"     {param}: {valor}")
-print(f"  ✅ Mejor F1-score (CV): {grid.best_score_:.4f}")
-
-modelo = grid.best_estimator_
+for i, cfg in enumerate(configs):
+    print(f"\n  [{i+1}/{len(configs)}] Entrenando: {cfg}")
+    t_start = time.time()
+    
+    m = RandomForestClassifier(**cfg, random_state=42, n_jobs=-1)
+    m.fit(X_train, y_train)
+    
+    t_train = time.time() - t_start
+    
+    pred = m.predict(X_test)
+    f1 = f1_score(y_test, pred)
+    tpr = ((y_test == 1) & (pred == 1)).sum() / (y_test == 1).sum() * 100
+    fpr = ((y_test == 0) & (pred == 1)).sum() / (y_test == 0).sum() * 100
+    
+    resultados.append({
+        'config': cfg,
+        'modelo': m,
+        'f1': f1,
+        'tpr': tpr,
+        'fpr': fpr,
+        'tiempo': t_train
+    })
+    
+    print(f"  → F1: {f1:.4f} | TPR: {tpr:.1f}% | FPR: {fpr:.1f}% | Tiempo: {t_train:.1f}s")
 
 # =============================================================================
-#                      RESULTADOS EN TEST
+#                SELECCIONAR MEJOR CONFIGURACIÓN
+# =============================================================================
+
+resultados.sort(key=lambda x: x['f1'], reverse=True)
+mejor = resultados[0]
+
+print("\n" + "="*55)
+print("          TABLA COMPARATIVA DE CONFIGURACIONES")
+print("="*55)
+print(f"\n  {'#':<4} {'n_est':<8} {'depth':<8} {'weight':<12} {'split':<8} {'F1':<8} {'TPR':<8} {'FPR':<8} {'Tiempo':<8}")
+print(f"  {'─'*72}")
+
+for i, r in enumerate(resultados):
+    cfg = r['config']
+    marca = " ★" if i == 0 else ""
+    print(f"  {i+1:<4} {cfg['n_estimators']:<8} {str(cfg['max_depth']):<8} {str(cfg['class_weight']):<12} {cfg['min_samples_split']:<8} {r['f1']:<8.4f} {r['tpr']:<8.1f} {r['fpr']:<8.1f} {r['tiempo']:<8.1f}{marca}")
+
+print(f"\n  ★ Mejor configuración seleccionada:")
+for param, valor in mejor['config'].items():
+    print(f"     {param}: {valor}")
+print(f"     F1-score: {mejor['f1']:.4f}")
+print(f"     TPR: {mejor['tpr']:.1f}%")
+print(f"     FPR: {mejor['fpr']:.1f}%")
+
+modelo = mejor['modelo']
+
+# =============================================================================
+#                      RESULTADOS DETALLADOS
 # =============================================================================
 
 y_pred = modelo.predict(X_test)
 
 print("\n" + "="*55)
-print("              RESULTADOS DEL TEST")
+print("        RESULTADOS DETALLADOS (MEJOR MODELO)")
 print("="*55)
 print(classification_report(y_test, y_pred, target_names=['Normal', 'Evil Twin']))
 
@@ -194,43 +233,6 @@ print("\n  Top 10 features más importantes:")
 importances = pd.Series(modelo.feature_importances_, index=features).sort_values(ascending=False)
 for i, (feat, imp) in enumerate(importances.head(10).items()):
     print(f"  {i+1}. {feat}: {imp:.4f}")
-
-# =============================================================================
-#           COMPARACIÓN: ANTES vs DESPUÉS de optimización
-# =============================================================================
-
-print("\n" + "-"*55)
-print("  COMPARACIÓN: Parámetros por defecto vs Optimizados")
-print("-"*55)
-
-modelo_base = RandomForestClassifier(
-    n_estimators=200,
-    max_depth=15,
-    class_weight='balanced',
-    random_state=42,
-    n_jobs=-1
-)
-modelo_base.fit(X_train, y_train)
-y_pred_base = modelo_base.predict(X_test)
-
-from sklearn.metrics import f1_score, precision_score, recall_score
-
-f1_base = f1_score(y_test, y_pred_base)
-f1_opt = f1_score(y_test, y_pred)
-prec_base = precision_score(y_test, y_pred_base)
-prec_opt = precision_score(y_test, y_pred)
-rec_base = recall_score(y_test, y_pred_base)
-rec_opt = recall_score(y_test, y_pred)
-
-print(f"\n  {'Métrica':<25} {'Original':<15} {'Optimizado':<15}")
-print(f"  {'─'*55}")
-print(f"  {'F1-score':<25} {f1_base:<15.4f} {f1_opt:<15.4f}")
-print(f"  {'Precision':<25} {prec_base:<15.4f} {prec_opt:<15.4f}")
-print(f"  {'Recall (TPR)':<25} {rec_base:<15.4f} {rec_opt:<15.4f}")
-print(f"  {'n_estimators':<25} {'200':<15} {str(grid.best_params_['n_estimators']):<15}")
-print(f"  {'max_depth':<25} {'15':<15} {str(grid.best_params_['max_depth']):<15}")
-print(f"  {'min_samples_split':<25} {'2':<15} {str(grid.best_params_['min_samples_split']):<15}")
-print(f"  {'class_weight':<25} {'balanced':<15} {str(grid.best_params_['class_weight']):<15}")
 
 # =============================================================================
 #                      GUARDAR MODELO OPTIMIZADO
@@ -246,5 +248,3 @@ print(f"📁 Features guardadas: {features_path}")
 
 print("\n✅ Entrenamiento con optimización completado!")
 print("="*55)
-
-
