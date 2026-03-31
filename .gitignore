@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Modelos entrenados (regenerar con los scripts de models/)
+*.pkl
+
+# Datasets (demasiado grandes, descargar de AWID3)
+AWID3_Dataset_CSV/
+*.csv
+!logs/.gitkeep
+
+# Logs de sesiones (se generan al ejecutar los IDS)
+logs/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Arduino compilación
+firmware/**/build/
+
+# Librerías JS locales (descargar según README)
+dashboard/static/js/*.min.js
+
+# Spyder
+.spyproject/
+
+# Jupyter
+.ipynb_checkpoints/
