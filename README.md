@@ -17,9 +17,13 @@
 
 ## 📌 Descripción
 
-Sistema de detección de intrusiones (IDS) en redes Wi-Fi orientado a entornos IoT, implementado en tiempo real sobre una Raspberry Pi 5. El sistema captura tráfico inalámbrico en modo monitor, lo analiza mediante modelos de Machine Learning (Random Forest) y genera alertas automáticas ante ataques de **Deauthentication** y **Evil Twin**.
+Sistema de detección y prevención de intrusiones (IDS/IPS) en redes Wi-Fi orientado a entornos IoT, implementado en tiempo real sobre una Raspberry Pi 5. El sistema captura tráfico inalámbrico en modo monitor, lo analiza mediante modelos de Machine Learning (Random Forest con hiperparámetros optimizados) y genera alertas automáticas ante ataques de **Deauthentication** y **Evil Twin**.
 
-El proyecto incluye además un **dashboard web** para monitorización en tiempo real de sensores IoT, un **firmware Evil Twin** para ataques controlados, y un **análisis de seguridad física** del hardware IoT.
+El proyecto incluye:
+- **Dashboard web** con monitorización en tiempo real, alertas de seguridad y control IPS integrado
+- **Mini-IPS** que blinda automáticamente el dispositivo IoT al AP legítimo ante ataques detectados
+- **Firmware Evil Twin WPA2** con contraseña extraída del firmware del dispositivo (ataque combinado hardware-red), portal cautivo y broker MQTT falso
+- **Análisis de seguridad física** del hardware IoT (extracción de firmware, UART, JTAG, eFuses)
 
 **Autor:** José David Conde Quispe  
 **Tutor:** Guillermo Botella Juan
@@ -37,23 +41,26 @@ El proyecto incluye además un **dashboard web** para monitorización en tiempo 
                     │  wlan2 (AR9271) ── Modo monitor  │
                     │  Mosquitto MQTT ── Broker        │
                     │  Dashboard Web ── Flask+SocketIO │
+                    │    + Control IPS + 4 estados     │
                     └──────────┬──────────┬────────────┘
                                │          │
                     ┌──────────┘          └───────────┐
-                    │                                 │
+                    │                                  │
           ┌─────────────────┐              ┌───────────────────┐
           │   CLIENTE IoT   │              │   MAC (Python)    │
           │  ESP32-C3 Rust  │              │                   │
           │  Board          │              │  IDS Deauth       │
-          │  Temp/Hum/IMU   │──── MQTT ───→ │  IDS Evil Twin   │
-          │  + MQTT pub     │              │  Alertas MQTT     │
-          └─────────────────┘              │  Métricas TPR/FPR │
-                                           └───────────────────┘
+          │  Temp/Hum/IMU   │──── MQTT ──→│  IDS Evil Twin    │
+          │  + Mini-IPS     │              │  Alertas MQTT     │
+          │  + LED estados  │              │  (vía SSH)        │
+          └─────────────────┘              └───────────────────┘
                     ┌──────────────────┐
                     │   ATACANTES      │
                     │                  │
                     │  ESP32 Marauder  │── Deauth
-                    │  ESP32 WROOM-32U │── Evil Twin + Portal Cautivo
+                    │  ESP32 WROOM-32U │── Evil Twin WPA2
+                    │                  │   + Portal Cautivo
+                    │                  │   + Broker MQTT falso
                     └──────────────────┘
 ```
 
@@ -61,37 +68,38 @@ El proyecto incluye además un **dashboard web** para monitorización en tiempo 
 
 ## 🎯 Características Principales
 
-- **Detección de Deauthentication** — Modelo Random Forest entrenado con dataset AWID3. TPR ~97%, FPR ~1%.
-- **Detección de Evil Twin** — Modelo Random Forest con features de ventana entrenado con tráfico real. TPR ~95%, FPR ~1%.
-- **Optimización de hiperparámetros** — Grid Search con validación cruzada (5-fold CV) para ambos modelos.
-- **Dashboard web en tiempo real** — Interfaz con datos de sensores IoT, gráficas y alertas de seguridad.
-- **Alertas MQTT** — Los IDS publican alertas al broker que el dashboard y los dispositivos reciben.
-- **Evil Twin completo** — AP falso + portal cautivo + broker MQTT falso para captura de credenciales y datos IoT.
-- **Análisis de seguridad física** — Extracción de firmware, UART sniffing, análisis de eFuses, JTAG expuesto.
+- **Detección de Deauthentication** — Random Forest con hiperparámetros optimizados (AWID3). TPR ~99.9%, FPR ~0.0%.
+- **Detección de Evil Twin** — Random Forest con 17 features de ventana (tráfico real). TPR ~98.9%, FPR ~0.0%.
+- **Optimización de hiperparámetros** — Evaluación de múltiples configuraciones y selección de la óptima por F1-score para ambos modelos.
+- **Mini-IPS** — Blindaje automático del dispositivo IoT al BSSID del AP legítimo ante alertas del IDS, controlable desde el dashboard o Serial.
+- **Dashboard web con 4 estados de seguridad** — Verde (seguro), azul (blindado), rojo (amenaza vulnerable), azul (amenaza blindada). Incluye botón de control IPS.
+- **Alertas MQTT vía SSH** — Los IDS publican alertas al broker mediante SSH → mosquitto_pub. El dashboard y la Rustboard reaccionan en tiempo real.
+- **Evil Twin WPA2** — AP falso con la misma contraseña extraída del firmware del dispositivo (Parte 4 → Parte 3), portal cautivo que replica el dashboard, broker MQTT falso que intercepta datos de sensores.
+- **Análisis de seguridad física** — Extracción de firmware, credenciales en texto plano, UART/USB expuesto, JTAG abierto, ausencia de Secure Boot, MQTT sin cifrar.
 
 ---
 
 ## 📁 Estructura del Repositorio
 
 ```
-wifi-ids-iot-ml/
+tfg-wifi-ids-iot-ml/
 ├── models/                            # Entrenamiento de modelos ML
-│   ├── train_deauth_awid.py           # Deauth con AWID + GridSearchCV
-│   ├── train_eviltwin_real.py         # Evil Twin con datos reales + GridSearchCV
+│   ├── train_deauth_awid.py           # Deauth con AWID + optimización hiperparámetros
+│   ├── train_eviltwin_real.py         # Evil Twin con datos reales + optimización
 │   └── capture_training_data.py       # Captura de tráfico para entrenamiento
 │
 ├── ids/                               # Detección en tiempo real
-│   ├── ids_deauth.py                  # IDS Deauth + métricas + alertas MQTT
-│   └── ids_eviltwin.py                # IDS Evil Twin + métricas + alertas MQTT
+│   ├── ids_deauth.py                  # IDS Deauth + métricas + alertas MQTT vía SSH
+│   └── ids_eviltwin.py                # IDS Evil Twin + métricas + alertas MQTT vía SSH
 │
 ├── firmware/                          # Código de los dispositivos
-│   ├── rustboard_client/              # Cliente IoT (ESP32-C3 Rustboard)
+│   ├── rustboard_client/              # Cliente IoT + Mini-IPS (ESP32-C3 Rustboard)
 │   │   └── rustboard_client.ino
-│   └── evil_twin/                     # Atacante Evil Twin (ESP32 WROOM-32U)
+│   └── evil_twin/                     # Atacante Evil Twin WPA2 (ESP32 WROOM-32U)
 │       └── evil_twin.ino
 │
-├── dashboard/                         # Dashboard web IoT
-│   ├── app.py                         # Servidor Flask + SocketIO + MQTT
+├── dashboard/                         # Dashboard web IoT + Control IPS
+│   ├── app.py                         # Servidor Flask + SocketIO + MQTT + IPS control
 │   └── templates/
 │       ├── login.html
 │       └── dashboard.html
@@ -123,9 +131,10 @@ wifi-ids-iot-ml/
 
 | Propiedad | Valor |
 |-----------|-------|
-| Algoritmo | Random Forest (hiperparámetros optimizados con GridSearchCV) |
-| Dataset | AWID3 — Deauthentication |
+| Algoritmo | Random Forest (hiperparámetros optimizados) |
+| Dataset | AWID3 — Deauthentication (archivos 0-21 train, 22-32 test) |
 | Features | 6 (type, subtype, signal_dbm, frame_len, retry, duration) |
+| Mejor config | n_estimators=100, max_depth=10, class_weight=None |
 | Clasificación | Por paquete individual |
 | Ventana de alerta | 50 paquetes, umbral >3 maliciosos |
 
@@ -133,11 +142,12 @@ wifi-ids-iot-ml/
 
 | Propiedad | Valor |
 |-----------|-------|
-| Algoritmo | Random Forest (hiperparámetros optimizados con GridSearchCV) |
+| Algoritmo | Random Forest (hiperparámetros optimizados) |
 | Dataset | Tráfico real capturado en laboratorio (~200k paquetes) |
 | Features | 17 features de ventana (estadísticas + Evil Twin específicas) |
+| Mejor config | Todas las configuraciones evaluadas dan resultado idéntico (features altamente discriminativas) |
 | Clasificación | Por ventana de 150 paquetes |
-| Features clave | `paquetes_bssid_falso`, `bssids_con_ssid`, `signal_var_same_ssid` |
+| Features clave | `paquetes_bssid_falso` (42%), `bssids_con_ssid` (34%), `signal_var_same_ssid` (6%) |
 
 ### Evolución del enfoque ML
 
@@ -149,12 +159,40 @@ wifi-ids-iot-ml/
 
 ## 📊 Métricas de Rendimiento
 
+### Optimización de hiperparámetros (Deauth)
+
+| # | n_est | depth | weight | F1 | TPR | FPR |
+|---|-------|-------|--------|-----|-----|-----|
+| ★ | 100 | 10 | None | 1.0000 | 99.9% | 0.0% |
+| 2 | 150 | None | None | 0.9998 | 99.4% | 0.0% |
+| 3 | 300 | 20 | None | 0.9996 | 98.9% | 0.0% |
+
 ### Validación con hardware real
 
 | Modelo | TPR | FPR | Tiempo detección |
 |--------|-----|-----|-----------------|
-| **Deauth** | ~97% | ~1% | ~550 ms |
-| **Evil Twin** | ~95% | ~1% | ~180 ms |
+| **Deauth** | ~99.9% | ~0.0% | ~550 ms |
+| **Evil Twin** | ~98.9% | ~0.0% | ~180 ms |
+
+---
+
+## 🛡️ Sistema IPS (Intrusion Prevention)
+
+El dispositivo IoT (Rustboard) implementa un mini-IPS que reacciona ante alertas del IDS:
+
+### Estados del sistema
+
+| Estado | LED Rustboard | Dashboard | Descripción |
+|--------|--------------|-----------|-------------|
+| Normal, IPS off | 🌈 Arcoíris | ✅ Verde — "Red segura" | Sin amenazas, sin protección activa |
+| Normal, IPS on | 🔵 Azul fijo | 🔵 Azul — "Red segura — Conexión blindada" | Sin amenazas, conectado al BSSID legítimo |
+| Amenaza, IPS off | 🔴 Rojo parpadeo | 🔴 Rojo — "RED INSEGURA — AMENAZA DE EVIL TWIN" | Ataque detectado, dispositivo vulnerable |
+| Amenaza, IPS on | 🟣 Morado fijo | 🔵 Azul — "Red sospechosa — Conexión blindada" | Ataque detectado, dispositivo protegido |
+
+### Control
+
+- **Dashboard:** Botón "Activar/Desactivar IPS" (MQTT → `tfg/ips_control`)
+- **Serial Monitor:** Comandos `ips on`, `ips off`, `status`, `help`
 
 ---
 
@@ -162,12 +200,12 @@ wifi-ids-iot-ml/
 
 | Dispositivo | Rol | Interfaz |
 |-------------|-----|----------|
-| Raspberry Pi 5 | Sistema de detección (IDS) | wlan0 (SSH), wlan1 (AP), wlan2 (monitor) |
+| Raspberry Pi 5 | Sistema de detección (IDS), broker MQTT, dashboard | wlan0 (SSH), wlan1 (AP), wlan2 (monitor) |
 | Atheros AR9271 #1 | Punto de acceso legítimo | wlan1 en modo AP |
 | Atheros AR9271 #2 | Captura de tráfico | wlan2 en modo monitor |
-| ESP32-C3 Rustboard | Cliente IoT (víctima) | WiFi + MQTT |
+| ESP32-C3 Rustboard | Cliente IoT + Mini-IPS | WiFi + MQTT + LED NeoPixel |
 | ESP32 WROOM-32U #1 | Atacante Deauth | Firmware Marauder |
-| ESP32 WROOM-32U #2 | Atacante Evil Twin | Firmware `evil_twin.ino` |
+| ESP32 WROOM-32U #2 | Atacante Evil Twin | Firmware `evil_twin.ino` (WPA2) |
 
 ---
 
@@ -176,7 +214,7 @@ wifi-ids-iot-ml/
 ### Requisitos
 
 ```bash
-pip install pandas scikit-learn joblib paho-mqtt flask flask-socketio
+pip install pandas scikit-learn joblib flask flask-socketio
 ```
 
 ### 1. Configurar la Raspberry Pi
@@ -185,7 +223,7 @@ Seguir la guía en [`raspi/setup_guide.md`](raspi/setup_guide.md) para configura
 - AP con hostapd (wlan1)
 - DHCP con dnsmasq
 - Modo monitor (wlan2)
-- Broker MQTT (Mosquitto)
+- Broker MQTT (Mosquitto con `listener 1883 0.0.0.0`)
 
 ### 2. Entrenar los modelos
 
@@ -207,6 +245,8 @@ sudo python app.py
 
 ### 4. Lanzar el IDS
 
+> **Nota:** Cambiar `RASPI_IP` en los scripts según la red actual.
+
 ```bash
 # Detección de Deauth
 python ids/ids_deauth.py
@@ -217,8 +257,8 @@ python ids/ids_eviltwin.py
 
 ### 5. Flashear firmware
 
-- **Rustboard:** Abrir `firmware/rustboard_client/rustboard_client.ino` en Arduino IDE, seleccionar ESP32-C3 Dev Module
-- **Evil Twin:** Abrir `firmware/evil_twin/evil_twin.ino` en Arduino IDE, seleccionar ESP32 Dev Module
+- **Rustboard:** Arduino IDE → ESP32-C3 Dev Module → USB CDC On Boot: Enabled. Requiere librería `ArduinoJson`.
+- **Evil Twin:** Arduino IDE → ESP32 Dev Module.
 
 ---
 
@@ -243,16 +283,18 @@ Se realizó un análisis completo de la seguridad del hardware IoT (ESP32-C3 Rus
 | Sin Secure Boot | Inyección de firmware malicioso | Control total del dispositivo |
 | MQTT sin cifrar | Sniffing con `mosquitto_sub` | Intercepción de datos de sensores |
 
+La contraseña Wi-Fi extraída del firmware se utilizó para crear el Evil Twin WPA2, demostrando un **ataque combinado hardware-red** donde el compromiso físico del dispositivo potencia la efectividad de los ataques inalámbricos.
+
 ---
 
 ## 🚀 Trabajo Futuro
 
-- **IPS (Intrusion Prevention System):** Respuesta automática ante ataques — blindado del dispositivo IoT al AP legítimo.
 - **Cloud Security:** Integración con servicios cloud (AWS IoT Core, Azure IoT Hub) para monitorización remota.
 - **Secure Boot + Flash Encryption:** Activación de protecciones hardware en el ESP32-C3.
 - **TLS en MQTT:** Cifrado de las comunicaciones entre dispositivos y broker.
 - **Modelo multiclase:** Unificación de los detectores en un solo modelo capaz de clasificar múltiples ataques.
 - **Notificaciones remotas:** Alertas por Telegram o push notifications.
+- **Fingerprinting de radio:** Verificación de APs mediante características de señal para prevenir MAC spoofing.
 
 ---
 
