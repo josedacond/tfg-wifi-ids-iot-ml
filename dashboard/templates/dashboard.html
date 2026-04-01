@@ -30,7 +30,6 @@
     min-height: 100vh;
   }
 
-  /* ===== NAVBAR ===== */
   .navbar {
     background: var(--card);
     border-bottom: 1px solid var(--border);
@@ -42,409 +41,152 @@
     top: 0;
     z-index: 100;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    transition: background 0.3s, border-color 0.3s;
+    transition: background 0.3s;
   }
 
-  .navbar.alert-active {
-    background: #fef2f2;
-    border-bottom-color: var(--red);
-  }
+  .navbar.alert-active { background: #fef2f2; border-bottom-color: var(--red); }
+  .navbar.shielded { background: #eff6ff; border-bottom-color: var(--primary); }
 
-  .nav-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
+  .nav-left { display: flex; align-items: center; gap: 12px; }
   .nav-logo {
-    width: 36px;
-    height: 36px;
+    width: 36px; height: 36px;
     background: linear-gradient(135deg, var(--primary), var(--purple));
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
+    border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-size: 18px;
   }
-
-  .nav-title {
-    font-weight: 700;
-    font-size: 17px;
-  }
-
+  .nav-title { font-weight: 700; font-size: 17px; }
   .nav-title span { color: var(--primary); }
-
-  .nav-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
+  .nav-right { display: flex; align-items: center; gap: 16px; }
 
   .status-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 500;
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
   }
-
-  .status-badge.online {
-    background: #f0fdf4;
-    color: var(--green);
-    border: 1px solid #bbf7d0;
-  }
-
-  .status-badge.offline {
-    background: #fef2f2;
-    color: var(--red);
-    border: 1px solid #fecaca;
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  .status-badge.online .status-dot {
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
+  .status-badge.online { background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0; }
+  .status-badge.offline { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .status-badge.online .status-dot { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
   .logout-btn {
-    font-family: inherit;
-    font-size: 13px;
-    color: var(--muted);
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-decoration: none;
+    font-family: inherit; font-size: 13px; color: var(--muted);
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 14px; cursor: pointer; transition: all 0.2s; text-decoration: none;
   }
+  .logout-btn:hover { color: var(--red); border-color: var(--red); }
 
-  .logout-btn:hover {
-    color: var(--red);
-    border-color: var(--red);
-  }
-
-  /* ===== ALERT BANNER ===== */
+  /* ALERT BANNER */
   .alert-banner {
-    display: none;
-    padding: 16px 24px;
-    background: linear-gradient(135deg, #dc2626, #b91c1c);
-    color: white;
-    align-items: center;
-    gap: 12px;
-    animation: slideDown 0.3s ease;
+    display: none; padding: 16px 24px; color: white;
+    align-items: center; gap: 12px; animation: slideDown 0.3s ease;
   }
+  .alert-banner.active { display: flex; }
+  .alert-banner.danger { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+  .alert-banner.shielded { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
 
-  .alert-banner.active {
-    display: flex;
-  }
+  @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-  @keyframes slideDown {
-    from { transform: translateY(-100%); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-
-  @keyframes flashBorder {
-    0%, 100% { border-color: var(--red); }
-    50% { border-color: transparent; }
-  }
-
-  .alert-icon {
-    font-size: 28px;
-    animation: alertPulse 1s infinite;
-  }
-
-  @keyframes alertPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
-  }
+  .alert-icon { font-size: 28px; animation: alertPulse 1s infinite; }
+  @keyframes alertPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+  .alert-banner.shielded .alert-icon { animation: none; }
 
   .alert-content { flex: 1; }
+  .alert-title { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+  .alert-detail { font-size: 13px; opacity: 0.9; }
+  .alert-time { font-size: 12px; opacity: 0.7; font-family: 'Courier New', monospace; }
 
-  .alert-title {
-    font-weight: 700;
-    font-size: 15px;
-    margin-bottom: 2px;
-  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
 
-  .alert-detail {
-    font-size: 13px;
-    opacity: 0.9;
-  }
-
-  .alert-time {
-    font-size: 12px;
-    opacity: 0.7;
-    font-family: 'Courier New', monospace;
-  }
-
-  .alert-dismiss {
-    background: rgba(255,255,255,0.2);
-    border: 1px solid rgba(255,255,255,0.3);
-    color: white;
-    padding: 6px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .alert-dismiss:hover {
-    background: rgba(255,255,255,0.3);
-  }
-
-  /* ===== CONTENIDO ===== */
-  .container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 24px 20px 40px;
-  }
-
-  /* ===== SECURITY STATUS CARD ===== */
+  /* SECURITY CARD */
   .security-card {
-    border-radius: 14px;
-    padding: 16px 20px;
-    box-shadow: var(--shadow);
-    margin-bottom: 24px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    transition: all 0.3s;
+    border-radius: 14px; padding: 16px 20px; box-shadow: var(--shadow);
+    margin-bottom: 24px; display: flex; align-items: center; gap: 14px; transition: all 0.3s;
   }
-
-  .security-card.safe {
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-  }
-
-  .security-card.danger {
-    background: #fef2f2;
-    border: 2px solid var(--red);
-    animation: flashBorder 1s infinite;
-  }
+  .security-card.safe { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .security-card.danger { background: #fef2f2; border: 2px solid var(--red); animation: flashBorder 1s infinite; }
+  .security-card.shielded { background: #eff6ff; border: 1px solid #93c5fd; }
+  @keyframes flashBorder { 0%, 100% { border-color: var(--red); } 50% { border-color: transparent; } }
 
   .security-icon { font-size: 24px; }
-
   .security-info { flex: 1; }
-
-  .security-title {
-    font-weight: 600;
-    font-size: 14px;
-  }
-
+  .security-title { font-weight: 600; font-size: 14px; }
   .security-card.safe .security-title { color: var(--green); }
   .security-card.danger .security-title { color: var(--red); }
+  .security-card.shielded .security-title { color: var(--primary); }
+  .security-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-  .security-detail {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 2px;
+  .security-right { display: flex; align-items: center; gap: 12px; }
+  .security-stats { text-align: right; font-size: 12px; color: var(--muted); }
+  .security-stats strong { font-family: 'Courier New', monospace; color: var(--text); }
+
+  /* IPS BUTTON */
+  .ips-btn {
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    padding: 8px 18px; border-radius: 8px; cursor: pointer;
+    transition: all 0.2s; border: none;
   }
+  .ips-btn.activate { background: var(--primary); color: white; }
+  .ips-btn.activate:hover { background: #1d4ed8; }
+  .ips-btn.deactivate { background: #fee2e2; color: var(--red); border: 1px solid #fecaca; }
+  .ips-btn.deactivate:hover { background: #fecaca; }
 
-  .security-stats {
-    text-align: right;
-    font-size: 12px;
-    color: var(--muted);
-  }
-
-  .security-stats strong {
-    font-family: 'Courier New', monospace;
-    color: var(--text);
-  }
-
-  /* ===== TARJETAS DE SENSORES ===== */
+  /* SENSOR GRID */
   .sensor-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px; margin-bottom: 24px;
   }
-
   .sensor-card {
-    background: var(--card);
-    border-radius: 14px;
-    padding: 20px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
+    background: var(--card); border-radius: 14px; padding: 20px;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
     transition: transform 0.2s, box-shadow 0.2s;
   }
-
-  .sensor-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  }
-
-  .sensor-label {
-    font-size: 13px;
-    color: var(--muted);
-    font-weight: 500;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .sensor-value {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--text);
-    line-height: 1;
-  }
-
-  .sensor-unit {
-    font-size: 16px;
-    color: var(--muted);
-    font-weight: 400;
-    margin-left: 2px;
-  }
-
+  .sensor-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+  .sensor-label { font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 8px; }
+  .sensor-value { font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; line-height: 1; }
+  .sensor-unit { font-size: 16px; color: var(--muted); font-weight: 400; margin-left: 2px; }
   .sensor-card.temp .sensor-value { color: var(--red); }
   .sensor-card.hum .sensor-value { color: var(--primary); }
   .sensor-card.pitch .sensor-value { color: var(--purple); }
   .sensor-card.roll .sensor-value { color: var(--orange); }
 
-  /* ===== GRÁFICAS ===== */
-  .charts-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 24px;
-  }
+  /* CHARTS */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .chart-card { background: var(--card); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+  .chart-wrap { position: relative; height: 200px; }
 
-  .chart-card {
-    background: var(--card);
-    border-radius: 14px;
-    padding: 20px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
-  }
+  /* ALERT LOG */
+  .alert-log { background: var(--card); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 24px; }
+  .alert-log-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .alert-log-list { max-height: 200px; overflow-y: auto; }
+  .alert-log-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; margin-bottom: 4px; font-size: 13px; }
+  .alert-log-item.deauth { background: #fef2f2; color: #991b1b; }
+  .alert-log-item.eviltwin { background: #fefce8; color: #854d0e; }
+  .alert-log-item.shielded { background: #eff6ff; color: #1e40af; }
+  .alert-log-item .log-time { font-family: 'Courier New', monospace; font-size: 11px; opacity: 0.7; min-width: 70px; }
+  .alert-log-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 20px; }
 
-  .chart-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 12px;
-  }
-
-  .chart-wrap {
-    position: relative;
-    height: 200px;
-  }
-
-  /* ===== ALERT LOG ===== */
-  .alert-log {
-    background: var(--card);
-    border-radius: 14px;
-    padding: 20px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
-    margin-bottom: 24px;
-  }
-
-  .alert-log-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .alert-log-list {
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .alert-log-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    margin-bottom: 4px;
-    font-size: 13px;
-  }
-
-  .alert-log-item.deauth {
-    background: #fef2f2;
-    color: #991b1b;
-  }
-
-  .alert-log-item.eviltwin {
-    background: #fefce8;
-    color: #854d0e;
-  }
-
-  .alert-log-item.normal {
-    background: #f0fdf4;
-    color: #166534;
-  }
-
-  .alert-log-item .log-time {
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    opacity: 0.7;
-    min-width: 70px;
-  }
-
-  .alert-log-empty {
-    color: var(--muted);
-    font-size: 13px;
-    text-align: center;
-    padding: 20px;
-  }
-
-  /* ===== INFO BAR ===== */
+  /* INFO BAR */
   .info-bar {
-    background: var(--card);
-    border-radius: 14px;
-    padding: 16px 20px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
+    background: var(--card); border-radius: 14px; padding: 16px 20px;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
   }
+  .info-item { font-size: 13px; color: var(--muted); }
+  .info-item strong { color: var(--text); font-weight: 600; }
 
-  .info-item {
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  .info-item strong {
-    color: var(--text);
-    font-weight: 600;
-  }
-
-  /* ===== RESPONSIVE ===== */
   @media (max-width: 700px) {
     .charts-grid { grid-template-columns: 1fr; }
     .sensor-grid { grid-template-columns: repeat(2, 1fr); }
     .info-bar { flex-direction: column; align-items: flex-start; }
     .alert-banner { flex-direction: column; text-align: center; }
+    .security-card { flex-direction: column; text-align: center; }
+    .security-right { margin-top: 10px; }
   }
 </style>
 </head>
 <body>
 
-<!-- NAVBAR -->
 <nav class="navbar" id="navbar">
   <div class="nav-left">
     <div class="nav-logo">🛡️</div>
@@ -459,33 +201,29 @@
   </div>
 </nav>
 
-<!-- ALERT BANNER -->
 <div class="alert-banner" id="alertBanner">
-  <div class="alert-icon">🚨</div>
+  <div class="alert-icon" id="alertIcon">🚨</div>
   <div class="alert-content">
-    <div class="alert-title" id="alertTitle">Ataque detectado</div>
+    <div class="alert-title" id="alertTitle">--</div>
     <div class="alert-detail" id="alertDetail">--</div>
   </div>
   <div class="alert-time" id="alertTime">--</div>
-  <button class="alert-dismiss" onclick="dismissAlert()">Descartar</button>
 </div>
 
-<!-- CONTENIDO -->
 <div class="container">
 
-  <!-- SECURITY STATUS -->
   <div class="security-card safe" id="securityCard">
     <div class="security-icon" id="securityIcon">✅</div>
     <div class="security-info">
       <div class="security-title" id="securityTitle">Red segura — Sin amenazas detectadas</div>
       <div class="security-detail" id="securityDetail">IDS monitorizando el tráfico Wi-Fi</div>
     </div>
-    <div class="security-stats">
-      Alertas: <strong id="alertCount">0</strong>
+    <div class="security-right">
+      <div class="security-stats">Alertas: <strong id="alertCount">0</strong></div>
+      <button class="ips-btn activate" id="ipsBtn" onclick="toggleIPS()">Activar IPS</button>
     </div>
   </div>
 
-  <!-- SENSORES EN TIEMPO REAL -->
   <div class="sensor-grid">
     <div class="sensor-card temp">
       <div class="sensor-label">🌡️ Temperatura</div>
@@ -505,23 +243,17 @@
     </div>
   </div>
 
-  <!-- GRÁFICAS -->
   <div class="charts-grid">
     <div class="chart-card">
       <div class="chart-title">Temperatura y Humedad</div>
-      <div class="chart-wrap">
-        <canvas id="chartTH"></canvas>
-      </div>
+      <div class="chart-wrap"><canvas id="chartTH"></canvas></div>
     </div>
     <div class="chart-card">
       <div class="chart-title">Inclinación (Pitch / Roll)</div>
-      <div class="chart-wrap">
-        <canvas id="chartIMU"></canvas>
-      </div>
+      <div class="chart-wrap"><canvas id="chartIMU"></canvas></div>
     </div>
   </div>
 
-  <!-- ALERT LOG -->
   <div class="alert-log">
     <div class="alert-log-title">📋 Registro de alertas IDS</div>
     <div class="alert-log-list" id="alertLogList">
@@ -529,88 +261,152 @@
     </div>
   </div>
 
-  <!-- INFO BAR -->
   <div class="info-bar">
     <div class="info-item">Dispositivo: <strong>Rustboard ESP32-C3</strong></div>
     <div class="info-item">Topic MQTT: <strong>tfg/sensor1</strong></div>
     <div class="info-item">Última lectura: <strong id="lastSeen">--</strong></div>
-    <div class="info-item">Paquetes recibidos: <strong id="pktCount">0</strong></div>
+    <div class="info-item">Paquetes: <strong id="pktCount">0</strong></div>
   </div>
-
 </div>
 
 <script>
-// =================================================================
-//                    CONFIGURACIÓN
-// =================================================================
 const MAX_POINTS = 60;
 const MAX_LOG_ITEMS = 50;
 let packetCount = 0;
 let alertCount = 0;
+let ipsActivo = false;
+let amenazaActiva = false;
 let alertTimeout = null;
 
-// =================================================================
-//                    SOCKET.IO
-// =================================================================
 const socket = io({ transports: ['polling'] });
 
-// =================================================================
-//                    ALERTAS IDS
-// =================================================================
+// ==================== IPS CONTROL ====================
 
-function showAlert(data) {
+function toggleIPS() {
+  if (ipsActivo) {
+    socket.emit('ips_toggle', { comando: 'off' });
+  } else {
+    socket.emit('ips_toggle', { comando: 'on' });
+  }
+}
+
+function updateIPSButton() {
+  const btn = document.getElementById('ipsBtn');
+  if (ipsActivo) {
+    btn.className = 'ips-btn deactivate';
+    btn.textContent = 'Desactivar IPS';
+  } else {
+    btn.className = 'ips-btn activate';
+    btn.textContent = 'Activar IPS';
+  }
+}
+
+// ==================== SECURITY STATES ====================
+
+function setSecurityState(state) {
+  const card = document.getElementById('securityCard');
+  const icon = document.getElementById('securityIcon');
+  const title = document.getElementById('securityTitle');
+  const detail = document.getElementById('securityDetail');
   const banner = document.getElementById('alertBanner');
   const navbar = document.getElementById('navbar');
-  const card = document.getElementById('securityCard');
+  const bannerIcon = document.getElementById('alertIcon');
+  const bannerTitle = document.getElementById('alertTitle');
+  const bannerDetail = document.getElementById('alertDetail');
 
-  let title = '';
-  let detail = '';
+  // Reset classes
+  navbar.className = 'navbar';
+  banner.className = 'alert-banner';
+  card.className = 'security-card';
 
-  if (data.tipo === 'deauth') {
-    title = '⚠️ ATAQUE DEAUTH DETECTADO';
-    detail = `${data.paquetes_maliciosos}/${data.total_paquetes} paquetes maliciosos en ventana #${data.ventana}`;
-  } else if (data.tipo === 'eviltwin') {
-    title = '⚠️ EVIL TWIN DETECTADO';
-    detail = `BSSIDs falsos: ${data.bssid_falsos || 0} | APs con SSID clonado: ${data.aps_con_ssid || 0}`;
+  if (state === 'safe') {
+    // ✅ Normal, IPS off
+    card.classList.add('safe');
+    icon.textContent = '✅';
+    title.textContent = 'Red segura — Sin amenazas detectadas';
+    detail.textContent = 'IDS monitorizando el tráfico Wi-Fi';
+    banner.classList.remove('active');
+
+  } else if (state === 'safe_shielded') {
+    // 🔵 Normal, IPS on
+    card.classList.add('shielded');
+    icon.textContent = '🛡️';
+    title.textContent = 'Red segura — Conexión blindada';
+    detail.textContent = 'IPS activo · Conectado al AP legítimo verificado';
+    navbar.classList.add('shielded');
+    banner.classList.remove('active');
+
+  } else if (state === 'danger') {
+    // 🔴 Amenaza, IPS off
+    card.classList.add('danger');
+    icon.textContent = '🚨';
+    title.textContent = 'RED INSEGURA — AMENAZA DE EVIL TWIN';
+    detail.textContent = 'Se ha detectado un AP falso · IPS desactivado · Dispositivo VULNERABLE';
+    navbar.classList.add('alert-active');
+    banner.classList.add('active', 'danger');
+    bannerIcon.textContent = '🚨';
+    bannerTitle.textContent = '⚠️ RED INSEGURA — AMENAZA DE EVIL TWIN';
+    bannerDetail.textContent = 'Active el IPS para blindar la conexión del dispositivo IoT';
+    playAlertSound();
+
+  } else if (state === 'shielded') {
+    // 🔵 Amenaza, IPS on (blindado)
+    card.classList.add('shielded');
+    icon.textContent = '🛡️';
+    title.textContent = 'Red sospechosa — Conexión blindada';
+    detail.textContent = 'Evil Twin detectado · IPS activo · Dispositivo protegido al AP legítimo';
+    navbar.classList.add('shielded');
+    banner.classList.add('active', 'shielded');
+    bannerIcon.textContent = '🛡️';
+    bannerTitle.textContent = 'Red sospechosa — Conexión blindada';
+    bannerDetail.textContent = 'Evil Twin en el aire · El dispositivo está protegido al AP legítimo';
   }
-
-  document.getElementById('alertTitle').textContent = title;
-  document.getElementById('alertDetail').textContent = detail;
-  document.getElementById('alertTime').textContent = data.timestamp || '--';
-
-  banner.classList.add('active');
-  navbar.classList.add('alert-active');
-
-  // Security card
-  card.className = 'security-card danger';
-  document.getElementById('securityIcon').textContent = '🚨';
-  document.getElementById('securityTitle').textContent = 'AMENAZA DETECTADA — ' + data.tipo.toUpperCase();
-  document.getElementById('securityDetail').textContent = detail;
-
-  // Counter
-  alertCount++;
-  document.getElementById('alertCount').textContent = alertCount;
-
-  // Beep sonoro
-  playAlertSound();
-
-  // Auto-dismiss después de 10s si no hay nuevo ataque
-  if (alertTimeout) clearTimeout(alertTimeout);
-  alertTimeout = setTimeout(dismissAlert, 10000);
 }
 
-function dismissAlert() {
-  document.getElementById('alertBanner').classList.remove('active');
-  document.getElementById('navbar').classList.remove('alert-active');
+function resolveSecurityState() {
+  if (amenazaActiva && ipsActivo) {
+    setSecurityState('shielded');
+  } else if (amenazaActiva && !ipsActivo) {
+    setSecurityState('danger');
+  } else if (!amenazaActiva && ipsActivo) {
+    setSecurityState('safe_shielded');
+  } else {
+    setSecurityState('safe');
+  }
+  updateIPSButton();
 }
 
-function setSecurityOk() {
-  const card = document.getElementById('securityCard');
-  card.className = 'security-card safe';
-  document.getElementById('securityIcon').textContent = '✅';
-  document.getElementById('securityTitle').textContent = 'Red segura — Sin amenazas detectadas';
-  document.getElementById('securityDetail').textContent = 'IDS monitorizando el tráfico Wi-Fi';
-}
+// ==================== ALERTAS IDS ====================
+
+let normalCount = 0;
+
+socket.on('ids_alert', function(data) {
+  if (data.nivel === 'critico') {
+    normalCount = 0;
+    amenazaActiva = true;
+    alertCount++;
+    document.getElementById('alertCount').textContent = alertCount;
+    document.getElementById('alertTime').textContent = data.timestamp || '--';
+    addAlertLog(data);
+    resolveSecurityState();
+  } else {
+    normalCount++;
+    if (normalCount >= 5) {
+      amenazaActiva = false;
+      resolveSecurityState();
+    }
+  }
+});
+
+// ==================== IPS STATUS ====================
+
+socket.on('ips_status', function(data) {
+  ipsActivo = data.activo || false;
+  amenazaActiva = data.amenaza || false;
+  resolveSecurityState();
+});
+
+// ==================== ALERT LOG ====================
 
 function addAlertLog(data) {
   const list = document.getElementById('alertLogList');
@@ -618,170 +414,65 @@ function addAlertLog(data) {
   if (empty) empty.remove();
 
   const item = document.createElement('div');
-  item.className = 'alert-log-item ' + (data.tipo || 'normal');
-
-  let icon = '✅';
-  let text = 'Tráfico normal';
+  let icon, text, cls;
 
   if (data.tipo === 'deauth') {
-    icon = '🔴';
-    text = `Deauth: ${data.paquetes_maliciosos}/${data.total_paquetes} paquetes maliciosos`;
+    icon = '🔴'; text = 'Deauth detectado'; cls = 'deauth';
   } else if (data.tipo === 'eviltwin') {
-    icon = '🟠';
-    text = `Evil Twin: ${data.bssid_falsos || 0} BSSIDs falsos detectados`;
+    icon = '🟠'; text = 'Evil Twin detectado'; cls = 'eviltwin';
+  } else {
+    return;
   }
 
-  item.innerHTML = `<span class="log-time">${data.timestamp || '--'}</span> ${icon} ${text}`;
+  if (ipsActivo) {
+    text += ' · IPS blindado ✅';
+    cls = 'shielded';
+  }
 
+  item.className = 'alert-log-item ' + cls;
+  item.innerHTML = '<span class="log-time">' + (data.timestamp || '--') + '</span> ' + icon + ' ' + text;
   list.insertBefore(item, list.firstChild);
-
-  // Limitar log
-  while (list.children.length > MAX_LOG_ITEMS) {
-    list.removeChild(list.lastChild);
-  }
+  while (list.children.length > MAX_LOG_ITEMS) list.removeChild(list.lastChild);
 }
 
 function playAlertSound() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // Tono de alerta: dos beeps rápidos
     [0, 0.2].forEach(delay => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      osc.type = 'square';
-      gain.gain.value = 0.15;
-      osc.start(ctx.currentTime + delay);
-      osc.stop(ctx.currentTime + delay + 0.12);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880; osc.type = 'square'; gain.gain.value = 0.15;
+      osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + 0.12);
     });
   } catch(e) {}
 }
 
-// Escuchar alertas IDS
-let normalCount = 0;
+// ==================== CHARTS ====================
 
-socket.on('ids_alert', function(data) {
-  if (data.nivel === 'critico') {
-    normalCount = 0;
-    showAlert(data);
-    addAlertLog(data);
-  } else {
-    normalCount++;
-    // Solo volver a safe después de 5 mensajes normales seguidos
-    if (normalCount >= 5) {
-      dismissAlert();
-      setSecurityOk();
-    }
-  }
-});
-
-// =================================================================
-//                    CHART.JS — Temp & Humedad
-// =================================================================
 const ctxTH = document.getElementById('chartTH').getContext('2d');
 const chartTH = new Chart(ctxTH, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [
-      {
-        label: 'Temp (°C)',
-        borderColor: '#ef4444',
-        backgroundColor: 'rgba(239,68,68,0.08)',
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.3,
-        fill: true,
-        data: []
-      },
-      {
-        label: 'Humedad (%)',
-        borderColor: '#2563eb',
-        backgroundColor: 'rgba(37,99,235,0.08)',
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.3,
-        fill: true,
-        data: []
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { intersect: false, mode: 'index' },
-    plugins: {
-      legend: {
-        labels: { font: { size: 12 }, usePointStyle: true, pointStyle: 'circle' }
-      }
-    },
-    scales: {
-      x: { display: false },
-      y: {
-        grid: { color: '#f1f5f9' },
-        ticks: { font: { family: 'Courier New', size: 11 }, color: '#94a3b8' }
-      }
-    },
-    animation: { duration: 300 }
-  }
+  type: 'line', data: { labels: [], datasets: [
+    { label: 'Temp (°C)', borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true, data: [] },
+    { label: 'Humedad (%)', borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true, data: [] }
+  ]}, options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' },
+    plugins: { legend: { labels: { font: { size: 12 }, usePointStyle: true, pointStyle: 'circle' } } },
+    scales: { x: { display: false }, y: { grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Courier New', size: 11 }, color: '#94a3b8' } } },
+    animation: { duration: 300 } }
 });
 
-// =================================================================
-//                    CHART.JS — IMU (Pitch / Roll)
-// =================================================================
 const ctxIMU = document.getElementById('chartIMU').getContext('2d');
 const chartIMU = new Chart(ctxIMU, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [
-      {
-        label: 'Pitch (°)',
-        borderColor: '#7c3aed',
-        backgroundColor: 'rgba(124,58,237,0.08)',
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.3,
-        fill: true,
-        data: []
-      },
-      {
-        label: 'Roll (°)',
-        borderColor: '#f59e0b',
-        backgroundColor: 'rgba(245,158,11,0.08)',
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.3,
-        fill: true,
-        data: []
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { intersect: false, mode: 'index' },
-    plugins: {
-      legend: {
-        labels: { font: { size: 12 }, usePointStyle: true, pointStyle: 'circle' }
-      }
-    },
-    scales: {
-      x: { display: false },
-      y: {
-        grid: { color: '#f1f5f9' },
-        ticks: { font: { family: 'Courier New', size: 11 }, color: '#94a3b8' }
-      }
-    },
-    animation: { duration: 300 }
-  }
+  type: 'line', data: { labels: [], datasets: [
+    { label: 'Pitch (°)', borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true, data: [] },
+    { label: 'Roll (°)', borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true, data: [] }
+  ]}, options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' },
+    plugins: { legend: { labels: { font: { size: 12 }, usePointStyle: true, pointStyle: 'circle' } } },
+    scales: { x: { display: false }, y: { grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Courier New', size: 11 }, color: '#94a3b8' } } },
+    animation: { duration: 300 } }
 });
 
-// =================================================================
-//                    DATOS DE SENSORES
-// =================================================================
+// ==================== SENSOR DATA ====================
 
 function updateStatus(online) {
   const badge = document.getElementById('statusBadge');
@@ -794,55 +485,42 @@ let disconnectTimer = null;
 
 socket.on('sensor_data', function(data) {
   updateStatus(true);
-  
   if (disconnectTimer) clearTimeout(disconnectTimer);
   disconnectTimer = setTimeout(() => updateStatus(false), 5000);
 
-  document.getElementById('valTemp').innerHTML = 
-    parseFloat(data.temp).toFixed(1) + '<span class="sensor-unit">°C</span>';
-  document.getElementById('valHum').innerHTML = 
-    parseFloat(data.hum).toFixed(1) + '<span class="sensor-unit">%</span>';
-  document.getElementById('valPitch').innerHTML = 
-    parseFloat(data.pitch).toFixed(2) + '<span class="sensor-unit">°</span>';
-  document.getElementById('valRoll').innerHTML = 
-    parseFloat(data.roll).toFixed(2) + '<span class="sensor-unit">°</span>';
+  document.getElementById('valTemp').innerHTML = parseFloat(data.temp).toFixed(1) + '<span class="sensor-unit">°C</span>';
+  document.getElementById('valHum').innerHTML = parseFloat(data.hum).toFixed(1) + '<span class="sensor-unit">%</span>';
+  document.getElementById('valPitch').innerHTML = parseFloat(data.pitch).toFixed(2) + '<span class="sensor-unit">°</span>';
+  document.getElementById('valRoll').innerHTML = parseFloat(data.roll).toFixed(2) + '<span class="sensor-unit">°</span>';
+
+  // Update IPS state from sensor data
+  if (data.ips !== undefined) {
+    ipsActivo = data.ips;
+    amenazaActiva = data.amenaza || false;
+    resolveSecurityState();
+  }
 
   const now = new Date();
   const timeStr = now.toLocaleTimeString('es-ES');
   document.getElementById('lastSeen').textContent = timeStr;
-  
   packetCount++;
   document.getElementById('pktCount').textContent = packetCount;
 
   chartTH.data.labels.push(timeStr);
   chartTH.data.datasets[0].data.push(parseFloat(data.temp));
   chartTH.data.datasets[1].data.push(parseFloat(data.hum));
-  if (chartTH.data.labels.length > MAX_POINTS) {
-    chartTH.data.labels.shift();
-    chartTH.data.datasets[0].data.shift();
-    chartTH.data.datasets[1].data.shift();
-  }
+  if (chartTH.data.labels.length > MAX_POINTS) { chartTH.data.labels.shift(); chartTH.data.datasets[0].data.shift(); chartTH.data.datasets[1].data.shift(); }
   chartTH.update();
 
   chartIMU.data.labels.push(timeStr);
   chartIMU.data.datasets[0].data.push(parseFloat(data.pitch));
   chartIMU.data.datasets[1].data.push(parseFloat(data.roll));
-  if (chartIMU.data.labels.length > MAX_POINTS) {
-    chartIMU.data.labels.shift();
-    chartIMU.data.datasets[0].data.shift();
-    chartIMU.data.datasets[1].data.shift();
-  }
+  if (chartIMU.data.labels.length > MAX_POINTS) { chartIMU.data.labels.shift(); chartIMU.data.datasets[0].data.shift(); chartIMU.data.datasets[1].data.shift(); }
   chartIMU.update();
 });
 
-socket.on('connect', function() {
-  console.log('[SocketIO] Conectado al servidor');
-});
-
-socket.on('disconnect', function() {
-  updateStatus(false);
-});
+socket.on('connect', function() { console.log('[SocketIO] Conectado'); });
+socket.on('disconnect', function() { updateStatus(false); });
 </script>
-
 </body>
 </html>
