@@ -30,7 +30,8 @@ warnings.filterwarnings("ignore")
 #                              CONFIGURACIÓN
 # =============================================================================
 
-RASPI_IP = "10.44.92.213"
+RASPI_IP = "192.168.1.49"
+#RASPI_IP = "10.44.92.213"
 RASPI_USER = "joseda_cond"
 INTERFAZ = "wlan2"
 MODELO_PATH = "/Users/joseda_cond/Desktop/- TFG -/TrainedModels/modelo_eviltwin_hibrido.pkl"
@@ -41,7 +42,7 @@ AP_LEGITIMO_BSSID = "24:ec:99:ca:88:26"
 AP_LEGITIMO_SSID = "TFG_TestAP"
 
 # Ventana
-TAMANO_VENTANA = 150
+TAMANO_VENTANA = 50
 
 # MQTT
 MQTT_TOPIC_ALERTA = "tfg/alerta"

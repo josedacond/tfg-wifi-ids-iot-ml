@@ -25,7 +25,8 @@ warnings.filterwarnings("ignore")
 #                              CONFIGURACIÓN
 # =============================================================================
 
-RASPI_IP = "10.39.89.213"
+#RASPI_IP = "10.44.92.213"
+RASPI_IP = "192.168.1.49"
 RASPI_USER = "joseda_cond"
 INTERFAZ = "wlan2"
 
