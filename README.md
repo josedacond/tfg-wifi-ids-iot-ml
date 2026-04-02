@@ -45,12 +45,12 @@ El proyecto incluye:
                     └──────────┬──────────┬────────────┘
                                │          │
                     ┌──────────┘          └───────────┐
-                    │                                  │
+                    │                                 │
           ┌─────────────────┐              ┌───────────────────┐
           │   CLIENTE IoT   │              │   MAC (Python)    │
           │  ESP32-C3 Rust  │              │                   │
           │  Board          │              │  IDS Deauth       │
-          │  Temp/Hum/IMU   │──── MQTT ──→│  IDS Evil Twin    │
+          │  Temp/Hum/IMU   │──── MQTT ──→ │  IDS Evil Twin    │
           │  + Mini-IPS     │              │  Alertas MQTT     │
           │  + LED estados  │              │  (vía SSH)        │
           └─────────────────┘              └───────────────────┘
