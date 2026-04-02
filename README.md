@@ -45,12 +45,12 @@ El proyecto incluye:
                     └──────────┬──────────┬────────────┘
                                │          │
                     ┌──────────┘          └───────────┐
-                    │                                 │
+                    │                                  │
           ┌─────────────────┐              ┌───────────────────┐
           │   CLIENTE IoT   │              │   MAC (Python)    │
           │  ESP32-C3 Rust  │              │                   │
           │  Board          │              │  IDS Deauth       │
-          │  Temp/Hum/IMU   │──── MQTT ──→ │  IDS Evil Twin    │
+          │  Temp/Hum/IMU   │──── MQTT ──→│  IDS Evil Twin    │
           │  + Mini-IPS     │              │  Alertas MQTT     │
           │  + LED estados  │              │  (vía SSH)        │
           └─────────────────┘              └───────────────────┘
@@ -69,7 +69,7 @@ El proyecto incluye:
 ## 🎯 Características Principales
 
 - **Detección de Deauthentication** — Random Forest con hiperparámetros optimizados (AWID3). TPR ~99.9%, FPR ~0.0%.
-- **Detección de Evil Twin** — Random Forest con 17 features de ventana (tráfico real). TPR ~98.9%, FPR ~0.0%.
+- **Detección de Evil Twin** — Random Forest con 17 features de ventana (tráfico real). TPR ~97.8%, FPR ~0.0%.
 - **Optimización de hiperparámetros** — Evaluación de múltiples configuraciones y selección de la óptima por F1-score para ambos modelos.
 - **Mini-IPS** — Blindaje automático del dispositivo IoT al BSSID del AP legítimo ante alertas del IDS, controlable desde el dashboard o Serial.
 - **Dashboard web con 4 estados de seguridad** — Verde (seguro), azul (blindado), rojo (amenaza vulnerable), azul (amenaza blindada). Incluye botón de control IPS.
@@ -113,9 +113,13 @@ tfg-wifi-ids-iot-ml/
 │   ├── Parte4_Seguridad_Fisica.md
 │   └── efuse_summary.txt
 │
-├── docs/                              # Documentación
-│   ├── arquitectura.md
-│   └── metricas.md
+├── docs/                              # Documentación y análisis
+│   └── analisis/                      # Gráficas y scripts de análisis de métricas
+│       ├── analisis_metricas_eviltwin.py
+│       ├── timeline_detecciones_eviltwin.png
+│       ├── confusion_matrix_eviltwin.png
+│       ├── tiempos_deteccion_eviltwin.png
+│       └── bssid_falsos_eviltwin.png
 │
 ├── README.md
 ├── requirements.txt
@@ -146,7 +150,7 @@ tfg-wifi-ids-iot-ml/
 | Dataset | Tráfico real capturado en laboratorio (~200k paquetes) |
 | Features | 17 features de ventana (estadísticas + Evil Twin específicas) |
 | Mejor config | Todas las configuraciones evaluadas dan resultado idéntico (features altamente discriminativas) |
-| Clasificación | Por ventana de 150 paquetes |
+| Clasificación | Por ventana de 50 paquetes |
 | Features clave | `paquetes_bssid_falso` (42%), `bssids_con_ssid` (34%), `signal_var_same_ssid` (6%) |
 
 ### Evolución del enfoque ML
@@ -161,18 +165,63 @@ tfg-wifi-ids-iot-ml/
 
 ### Optimización de hiperparámetros (Deauth)
 
+Se evaluaron 6 configuraciones de hiperparámetros sobre el dataset AWID3 (1.1M paquetes de entrenamiento, 526k de test) y se seleccionó la óptima por F1-score:
+
 | # | n_est | depth | weight | F1 | TPR | FPR |
 |---|-------|-------|--------|-----|-----|-----|
 | ★ | 100 | 10 | None | 1.0000 | 99.9% | 0.0% |
 | 2 | 150 | None | None | 0.9998 | 99.4% | 0.0% |
 | 3 | 300 | 20 | None | 0.9996 | 98.9% | 0.0% |
 
-### Validación con hardware real
+La configuración con `class_weight='balanced'` reduce el TPR a 83.1% debido al desbalanceo del dataset (99.9% normal, 0.1% ataque), demostrando que el balanceo de clases es contraproducente en este escenario.
 
-| Modelo | TPR | FPR | Tiempo detección |
-|--------|-----|-----|-----------------|
-| **Deauth** | ~99.9% | ~0.0% | ~550 ms |
-| **Evil Twin** | ~98.9% | ~0.0% | ~180 ms |
+### Validación con hardware real (Evil Twin)
+
+Evaluación sobre **3020 ventanas** en tiempo real (1593 normales, 1427 de ataque) durante un ataque Evil Twin controlado en el laboratorio:
+
+| Métrica | Valor |
+|---------|-------|
+| **TPR (Recall)** | 97.8% (1396/1427) |
+| **FPR** | 0.0% (0/1593) |
+| **Precision** | 100.0% |
+| **F1-Score** | 98.9% |
+| **Accuracy** | 99.0% |
+| **Tiempo medio detección** | 421 ms |
+
+### Resumen de rendimiento
+
+| Modelo | TPR | FPR | F1-Score | Tiempo detección |
+|--------|-----|-----|----------|-----------------|
+| **Deauth** | 99.9% | 0.0% | 100.0% | ~550 ms |
+| **Evil Twin** | 97.8% | 0.0% | 98.9% | ~421 ms |
+
+---
+
+## 📈 Análisis Visual de Resultados (Evil Twin)
+
+### Timeline de Detecciones
+
+Cada punto representa una ventana de 50 paquetes clasificada por el IDS. El fondo verde indica periodos de tráfico normal y el fondo rojo periodos de ataque Evil Twin activo. Los puntos rojos superiores son ataques detectados correctamente (TP), los puntos amarillos son ataques no detectados (FN = 31), y los puntos verdes inferiores son tráfico normal clasificado correctamente (TN). No hay ningún punto naranja (FP = 0), lo que confirma la ausencia total de falsas alarmas.
+
+![Timeline de Detecciones](docs/analisis/timeline_detecciones_eviltwin.png)
+
+### Matriz de Confusión
+
+Visualización de los cuatro cuadrantes de clasificación. De las 3020 ventanas analizadas, 1593 ventanas normales fueron clasificadas correctamente (TN), 1396 ataques fueron detectados (TP), solo 31 ataques pasaron desapercibidos (FN), y no hubo ninguna falsa alarma (FP = 0). La ausencia de falsos positivos es especialmente relevante en entornos IoT donde las falsas alarmas podrían provocar acciones defensivas innecesarias.
+
+![Matriz de Confusión](docs/analisis/confusion_matrix_eviltwin.png)
+
+### Distribución de Tiempos de Detección
+
+Histogramas del tiempo que tarda en llenarse cada ventana de 50 paquetes. Este tiempo depende de la densidad de tráfico Wi-Fi en el entorno, no del rendimiento del modelo (que clasifica de forma instantánea). En modo ataque (izquierda) hay mayor dispersión debido al tráfico adicional generado por el Evil Twin, con una media de 421 ms. En modo normal (derecha) los tiempos se concentran alrededor de 400-500 ms, con algunos outliers en entornos de bajo tráfico.
+
+![Tiempos de Detección](docs/analisis/tiempos_deteccion_eviltwin.png)
+
+### Paquetes de BSSID Falso por Ventana
+
+Número de paquetes provenientes del BSSID del Evil Twin en cada ventana. Durante el periodo normal (ventanas 0-600 y 2100-3020) el recuento es cero, confirmando la ausencia del AP falso. Durante el ataque (ventanas 600-2100) se observan entre 2 y 18 paquetes del Evil Twin por ventana. Las ventanas con 0 paquetes del BSSID falso dentro del periodo de ataque corresponden a los 31 FN donde el modelo no detectó el ataque, ya que en esas ventanas concretas no llegaron paquetes del Evil Twin al sensor de captura.
+
+![BSSIDs Falsos por Ventana](docs/analisis/bssid_falsos_eviltwin.png)
 
 ---
 
