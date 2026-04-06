@@ -35,8 +35,8 @@ RASPI_IP = "10.44.92.213"
 RASPI_USER = "joseda_cond"
 INTERFAZ = "wlan2"
 MODELO_PATH = "/Users/joseda_cond/Desktop/- TFG -/TrainedModels/modelo_deauth.pkl"
-UMBRAL_ALERTA = 3          # paquetes maliciosos por ventana para alertar
-TAMANO_VENTANA = 50         # paquetes por ventana
+UMBRAL_ALERTA = 20          # paquetes maliciosos por ventana para alertar
+TAMANO_VENTANA = 150         # paquetes por ventana
 
 # MQTT
 MQTT_TOPIC_ALERTA = "tfg/alerta"
@@ -52,7 +52,6 @@ LOG_CSV = f"/Users/joseda_cond/Desktop/- TFG -/logs/log_ids_deauth_{timestamp_in
 def publicar_alerta(payload_json):
     """Publica alerta MQTT vía SSH → mosquitto_pub en la Raspi."""
     try:
-        # Escapar comillas simples en el payload
         payload_escaped = payload_json.replace("'", "'\\''")
         cmd = [
             "ssh", f"{RASPI_USER}@{RASPI_IP}",
@@ -62,7 +61,7 @@ def publicar_alerta(payload_json):
     except Exception as e:
         pass
 
-mqtt_ok = True  # Siempre disponible vía SSH
+mqtt_ok = True
 print(f"[MQTT] Alertas vía SSH → mosquitto_pub en {RASPI_IP}")
 
 # =============================================================================
@@ -91,7 +90,7 @@ def escuchar_teclado():
 # =============================================================================
 
 print("\n" + "="*50)
-print("  IDS DEAUTH — Detección + Alertas MQTT")
+print("  IDS DEAUTH — Detección ML (AWID3) + Alertas MQTT")
 print("="*50)
 print(f"\nCargando modelo: {MODELO_PATH}")
 modelo = joblib.load(MODELO_PATH)
@@ -248,6 +247,7 @@ try:
                 )
                 df = df.fillna(0)
                 
+                # Predicción ML con modelo AWID3
                 predicciones = modelo.predict(df)
                 paquetes_maliciosos = (predicciones == -1).sum()
                 

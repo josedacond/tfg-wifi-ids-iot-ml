@@ -30,8 +30,8 @@ FEATURES = [
 ]
 
 # Rangos de archivos (SIN solapamiento)
-TRAIN_RANGE = range(0, 22)      # Archivos 0-21 para entrenamiento
-TEST_RANGE = range(22, 33)      # Archivos 22-32 para test
+TRAIN_RANGE = range(15, 25)     # Archivos 15-24 para entrenamiento
+TEST_RANGE = range(25, 33)      # Archivos 25-32 para test
 
 # =============================================================================
 #                          CARGAR DATOS
@@ -126,7 +126,6 @@ for i, cfg in enumerate(configs):
 #                SELECCIONAR MEJOR CONFIGURACIÓN
 # =============================================================================
 
-# Ordenar por F1-score
 resultados.sort(key=lambda x: x['f1'], reverse=True)
 mejor = resultados[0]
 
@@ -148,7 +147,6 @@ print(f"     F1-score: {mejor['f1']:.4f}")
 print(f"     TPR: {mejor['tpr']:.1f}%")
 print(f"     FPR: {mejor['fpr']:.1f}%")
 
-# Usar el mejor modelo
 modelo = mejor['modelo']
 
 # =============================================================================
