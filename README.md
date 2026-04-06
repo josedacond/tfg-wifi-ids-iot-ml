@@ -45,12 +45,12 @@ El proyecto incluye:
                     └──────────┬──────────┬────────────┘
                                │          │
                     ┌──────────┘          └───────────┐
-                    │                                 │
+                    │                                  │
           ┌─────────────────┐              ┌───────────────────┐
           │   CLIENTE IoT   │              │   MAC (Python)    │
           │  ESP32-C3 Rust  │              │                   │
           │  Board          │              │  IDS Deauth       │
-          │  Temp/Hum/IMU   │──── MQTT ──→ │  IDS Evil Twin    │
+          │  Temp/Hum/IMU   │──── MQTT ──→│  IDS Evil Twin    │
           │  + Mini-IPS     │              │  Alertas MQTT     │
           │  + LED estados  │              │  (vía SSH)        │
           └─────────────────┘              └───────────────────┘
@@ -68,7 +68,7 @@ El proyecto incluye:
 
 ## 🎯 Características Principales
 
-- **Detección de Deauthentication** — Random Forest con hiperparámetros optimizados (AWID3). TPR ~99.9%, FPR ~0.0%.
+- **Detección de Deauthentication** — Random Forest con hiperparámetros optimizados (AWID3). TPR ~99.7%, FPR ~0.0%.
 - **Detección de Evil Twin** — Random Forest con 17 features de ventana (tráfico real). TPR ~97.8%, FPR ~0.0%.
 - **Optimización de hiperparámetros** — Evaluación de múltiples configuraciones y selección de la óptima por F1-score para ambos modelos.
 - **Mini-IPS** — Blindaje automático del dispositivo IoT al BSSID del AP legítimo ante alertas del IDS, controlable desde el dashboard o Serial.
@@ -114,12 +114,18 @@ tfg-wifi-ids-iot-ml/
 │   └── efuse_summary.txt
 │
 ├── docs/                              # Documentación y análisis
-│   └── analisis/                      # Gráficas y scripts de análisis de métricas
-│       ├── analisis_metricas_eviltwin.py
-│       ├── timeline_detecciones_eviltwin.png
-│       ├── confusion_matrix_eviltwin.png
-│       ├── tiempos_deteccion_eviltwin.png
-│       └── bssid_falsos_eviltwin.png
+│   ├── analisis_eviltwin/             # Gráficas y análisis Evil Twin
+│   │   ├── analisis_metricas_eviltwin.py
+│   │   ├── timeline_detecciones_eviltwin.png
+│   │   ├── confusion_matrix_eviltwin.png
+│   │   ├── tiempos_deteccion_eviltwin.png
+│   │   └── bssid_falsos_eviltwin.png
+│   └── analisis_deauth/              # Gráficas y análisis Deauth
+│       ├── analisis_metricas_deauth.py
+│       ├── timeline_detecciones_deauth.png
+│       ├── confusion_matrix_deauth.png
+│       ├── tiempos_deteccion_deauth.png
+│       └── paquetes_maliciosos_deauth.png
 │
 ├── README.md
 ├── requirements.txt
@@ -136,11 +142,11 @@ tfg-wifi-ids-iot-ml/
 | Propiedad | Valor |
 |-----------|-------|
 | Algoritmo | Random Forest (hiperparámetros optimizados) |
-| Dataset | AWID3 — Deauthentication (archivos 0-21 train, 22-32 test) |
+| Dataset | AWID3 — Deauthentication (archivos 15-24 train, 25-32 test) |
 | Features | 6 (type, subtype, signal_dbm, frame_len, retry, duration) |
-| Mejor config | n_estimators=100, max_depth=10, class_weight=None |
+| Mejor config | n_estimators=150, max_depth=None, class_weight=None |
 | Clasificación | Por paquete individual |
-| Ventana de alerta | 50 paquetes, umbral >3 maliciosos |
+| Ventana de alerta | 150 paquetes, umbral >20 maliciosos |
 
 ### Modelo Evil Twin (Datos Reales)
 
@@ -163,17 +169,25 @@ tfg-wifi-ids-iot-ml/
 
 ## 📊 Métricas de Rendimiento
 
-### Optimización de hiperparámetros (Deauth)
+### Resumen de rendimiento
 
-Se evaluaron 6 configuraciones de hiperparámetros sobre el dataset AWID3 (1.1M paquetes de entrenamiento, 526k de test) y se seleccionó la óptima por F1-score:
+| Modelo | TPR | FPR | F1-Score | Tiempo detección |
+|--------|-----|-----|----------|-----------------|
+| **Deauth** | 99.7% | 0.0% | 99.9% | ~115 ms |
+| **Evil Twin** | 97.8% | 0.0% | 98.9% | ~421 ms |
 
-| # | n_est | depth | weight | F1 | TPR | FPR |
-|---|-------|-------|--------|-----|-----|-----|
-| ★ | 100 | 10 | None | 1.0000 | 99.9% | 0.0% |
-| 2 | 150 | None | None | 0.9998 | 99.4% | 0.0% |
-| 3 | 300 | 20 | None | 0.9996 | 98.9% | 0.0% |
+### Validación con hardware real (Deauth)
 
-La configuración con `class_weight='balanced'` reduce el TPR a 83.1% debido al desbalanceo del dataset (99.9% normal, 0.1% ataque), demostrando que el balanceo de clases es contraproducente en este escenario.
+Evaluación sobre **6464 ventanas** en tiempo real (2142 normales, 4322 de ataque) durante un ataque Deauth controlado con ESP32 Marauder en el laboratorio:
+
+| Métrica | Valor |
+|---------|-------|
+| **TPR (Recall)** | 99.7% (4308/4322) |
+| **FPR** | 0.0% (0/2142) |
+| **Precision** | 100.0% |
+| **F1-Score** | 99.9% |
+| **Accuracy** | 99.8% |
+| **Tiempo medio detección** | 115 ms |
 
 ### Validación con hardware real (Evil Twin)
 
@@ -188,12 +202,33 @@ Evaluación sobre **3020 ventanas** en tiempo real (1593 normales, 1427 de ataqu
 | **Accuracy** | 99.0% |
 | **Tiempo medio detección** | 421 ms |
 
-### Resumen de rendimiento
+---
 
-| Modelo | TPR | FPR | F1-Score | Tiempo detección |
-|--------|-----|-----|----------|-----------------|
-| **Deauth** | 99.9% | 0.0% | 100.0% | ~550 ms |
-| **Evil Twin** | 97.8% | 0.0% | 98.9% | ~421 ms |
+## 📈 Análisis Visual de Resultados (Deauth)
+
+### Timeline de Detecciones
+
+Cada punto representa una ventana de 150 paquetes clasificada por el modelo Random Forest entrenado con AWID3. El fondo verde indica periodos de tráfico normal y el fondo rojo periodos de ataque Deauth activo. De las 4322 ventanas de ataque, 4308 fueron detectadas correctamente (TP) y solo 14 pasaron desapercibidas (FN). No hubo ninguna falsa alarma (FP = 0) en las 2142 ventanas de tráfico normal.
+
+![Timeline de Detecciones — Deauth](docs/analisis_deauth/timeline_detecciones_deauth.png)
+
+### Matriz de Confusión
+
+De las 6464 ventanas analizadas: 2142 ventanas normales clasificadas correctamente (TN), 4308 ataques detectados (TP), solo 14 ataques no detectados (FN) y cero falsas alarmas (FP = 0).
+
+![Matriz de Confusión — Deauth](docs/analisis_deauth/confusion_matrix_deauth.png)
+
+### Distribución de Tiempos de Detección
+
+En modo ataque (izquierda) la mayoría de ventanas se llenan en menos de 100 ms debido al alto volumen de frames deauth generados por el Marauder (media: 115 ms). En modo normal (derecha) las ventanas tardan más en llenarse (media: 262 ms) al depender solo del tráfico Wi-Fi ambiente.
+
+![Tiempos de Detección — Deauth](docs/analisis_deauth/tiempos_deteccion_deauth.png)
+
+### Paquetes Maliciosos por Ventana
+
+Número de paquetes clasificados como maliciosos por el modelo en cada ventana. La línea amarilla representa el umbral de alerta (20 paquetes). Durante el ataque, el modelo detecta entre 60 y 140 paquetes maliciosos por ventana (muy por encima del umbral). Durante el tráfico normal, el ruido de fondo se mantiene por debajo de 15 paquetes, lejos del umbral, lo que garantiza cero falsas alarmas.
+
+![Paquetes Maliciosos — Deauth](docs/analisis_deauth/paquetes_maliciosos_deauth.png)
 
 ---
 
@@ -203,25 +238,25 @@ Evaluación sobre **3020 ventanas** en tiempo real (1593 normales, 1427 de ataqu
 
 Cada punto representa una ventana de 50 paquetes clasificada por el IDS. El fondo verde indica periodos de tráfico normal y el fondo rojo periodos de ataque Evil Twin activo. Los puntos rojos superiores son ataques detectados correctamente (TP), los puntos amarillos son ataques no detectados (FN = 31), y los puntos verdes inferiores son tráfico normal clasificado correctamente (TN). No hay ningún punto naranja (FP = 0), lo que confirma la ausencia total de falsas alarmas.
 
-![Timeline de Detecciones](docs/analisis/timeline_detecciones_eviltwin.png)
+![Timeline de Detecciones — Evil Twin](docs/analisis_eviltwin/timeline_detecciones_eviltwin.png)
 
 ### Matriz de Confusión
 
-Visualización de los cuatro cuadrantes de clasificación. De las 3020 ventanas analizadas, 1593 ventanas normales fueron clasificadas correctamente (TN), 1396 ataques fueron detectados (TP), solo 31 ataques pasaron desapercibidos (FN), y no hubo ninguna falsa alarma (FP = 0). La ausencia de falsos positivos es especialmente relevante en entornos IoT donde las falsas alarmas podrían provocar acciones defensivas innecesarias.
+De las 3020 ventanas analizadas, 1593 ventanas normales fueron clasificadas correctamente (TN), 1396 ataques fueron detectados (TP), solo 31 ataques pasaron desapercibidos (FN), y no hubo ninguna falsa alarma (FP = 0). La ausencia de falsos positivos es especialmente relevante en entornos IoT donde las falsas alarmas podrían provocar acciones defensivas innecesarias.
 
-![Matriz de Confusión](docs/analisis/confusion_matrix_eviltwin.png)
+![Matriz de Confusión — Evil Twin](docs/analisis_eviltwin/confusion_matrix_eviltwin.png)
 
 ### Distribución de Tiempos de Detección
 
-Histogramas del tiempo que tarda en llenarse cada ventana de 50 paquetes. Este tiempo depende de la densidad de tráfico Wi-Fi en el entorno, no del rendimiento del modelo (que clasifica de forma instantánea). En modo ataque (izquierda) hay mayor dispersión debido al tráfico adicional generado por el Evil Twin, con una media de 421 ms. En modo normal (derecha) los tiempos se concentran alrededor de 400-500 ms, con algunos outliers en entornos de bajo tráfico.
+Histogramas del tiempo que tarda en llenarse cada ventana de 50 paquetes. En modo ataque (izquierda) hay mayor dispersión debido al tráfico adicional generado por el Evil Twin, con una media de 421 ms. En modo normal (derecha) los tiempos se concentran alrededor de 400-500 ms.
 
-![Tiempos de Detección](docs/analisis/tiempos_deteccion_eviltwin.png)
+![Tiempos de Detección — Evil Twin](docs/analisis_eviltwin/tiempos_deteccion_eviltwin.png)
 
 ### Paquetes de BSSID Falso por Ventana
 
-Número de paquetes provenientes del BSSID del Evil Twin en cada ventana. Durante el periodo normal (ventanas 0-600 y 2100-3020) el recuento es cero, confirmando la ausencia del AP falso. Durante el ataque (ventanas 600-2100) se observan entre 2 y 18 paquetes del Evil Twin por ventana. Las ventanas con 0 paquetes del BSSID falso dentro del periodo de ataque corresponden a los 31 FN donde el modelo no detectó el ataque, ya que en esas ventanas concretas no llegaron paquetes del Evil Twin al sensor de captura.
+Número de paquetes provenientes del BSSID del Evil Twin en cada ventana. Durante el periodo normal el recuento es cero, confirmando la ausencia del AP falso. Durante el ataque se observan entre 2 y 18 paquetes del Evil Twin por ventana. Las ventanas con 0 paquetes del BSSID falso dentro del periodo de ataque corresponden a los 31 FN donde el modelo no detectó el ataque.
 
-![BSSIDs Falsos por Ventana](docs/analisis/bssid_falsos_eviltwin.png)
+![BSSIDs Falsos por Ventana — Evil Twin](docs/analisis_eviltwin/bssid_falsos_eviltwin.png)
 
 ---
 
