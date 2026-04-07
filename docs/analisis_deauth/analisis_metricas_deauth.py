@@ -157,7 +157,7 @@ print(f"📁 Gráfica guardada: confusion_matrix_deauth.png")
 # =============================================================================
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-bins = range(0, 1250, 50)
+bins = range(0, 850, 50)
 
 if len(ataque) > 0:
     ax1.hist(ataque['tiempo_ventana_ms'], bins=bins, color='#dc2626', alpha=0.7, edgecolor='black')
@@ -168,7 +168,7 @@ if len(ataque) > 0:
     ax1.set_title('Tiempo de Ventana — Modo Ataque', fontsize=12, fontweight='bold')
     ax1.legend(fontsize=10)
     ax1.grid(alpha=0.3)
-    ax1.set_xlim(0, 1200)
+    ax1.set_xlim(0, 800)
 
 if len(normal) > 0:
     ax2.hist(normal['tiempo_ventana_ms'], bins=bins, color='#16a34a', alpha=0.7, edgecolor='black')
@@ -179,7 +179,7 @@ if len(normal) > 0:
     ax2.set_title('Tiempo de Ventana — Modo Normal', fontsize=12, fontweight='bold')
     ax2.legend(fontsize=10)
     ax2.grid(alpha=0.3)
-    ax2.set_xlim(0, 1200)
+    ax2.set_xlim(0, 800)
 
 plt.tight_layout()
 plt.savefig(os.path.join(OUTPUT_DIR, 'tiempos_deteccion_deauth.png'), dpi=200)
